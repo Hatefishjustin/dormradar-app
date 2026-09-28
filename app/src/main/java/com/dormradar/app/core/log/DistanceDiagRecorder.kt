@@ -47,6 +47,14 @@ class DistanceDiagRecorder @Inject constructor() {
     /** 最近一次输出是否来自"目标丢失保持"窗口（保留的是旧值） */
     @Volatile private var uiInHold: Boolean = false
 
+    /** 当前引导阶段（见 [DiagPhase]）；只影响之后写入的样本 */
+    @Volatile private var currentPhase: Int = DiagPhase.NONE
+
+    /** 设置引导阶段（引导式两阶段流程由 ViewModel 指挥） */
+    fun setPhase(phase: Int) {
+        currentPhase = phase
+    }
+
     /** 开始记录（不清空已有缓冲；relMs 对已有行保持单调） */
     fun start() {
         _recording.value = true
@@ -61,6 +69,7 @@ class DistanceDiagRecorder @Inject constructor() {
             buffer.clear()
             _samples.value = emptyList()
             firstWallClockMs = 0L
+            currentPhase = DiagPhase.NONE
         }
     }
 
@@ -95,6 +104,7 @@ class DistanceDiagRecorder @Inject constructor() {
                     wallClockMs = now,
                     relMs = now - firstWallClockMs,
                     frameType = frameType,
+                    phase = currentPhase,
                     targetState = targetState,
                     moveDistanceCm = moveDistanceCm,
                     moveEnergy = moveEnergy,

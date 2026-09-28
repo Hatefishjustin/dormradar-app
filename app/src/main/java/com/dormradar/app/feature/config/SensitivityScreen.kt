@@ -52,11 +52,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.dormradar.app.core.deploy.EnergySeriesCollector
+import com.dormradar.app.core.deploy.NoiseBaselineAdvisor
 import com.dormradar.app.core.device.DeviceInfo
 import com.dormradar.app.core.device.GateEnergies
 import com.dormradar.app.core.device.OpResult
 import com.dormradar.app.core.device.RadarConnection
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -136,6 +140,138 @@ class SensitivityViewModel @Inject constructor(
     fun clearMessage() {
         _message.value = null
     }
+
+    // ---- 无人基线定参（core/deploy/NoiseBaselineAdvisor）----
+
+    private val _baselineSampling = MutableStateFlow(false)
+    val baselineSampling: StateFlow<Boolean> = _baselineSampling.asStateFlow()
+
+    private val _baselineRemain = MutableStateFlow(0)
+    val baselineRemain: StateFlow<Int> = _baselineRemain.asStateFlow()
+
+    private val _baselineInfo = MutableStateFlow<String?>(null)
+    val baselineInfo: StateFlow<String?> = _baselineInfo.asStateFlow()
+
+    private val _baselineMargin = MutableStateFlow(NoiseBaselineAdvisor.DEFAULT_MARGIN)
+    val baselineMargin: StateFlow<Int> = _baselineMargin.asStateFlow()
+
+    private val _baselineBasis = MutableStateFlow(NoiseBaselineAdvisor.Basis.P95)
+    val baselineBasis: StateFlow<NoiseBaselineAdvisor.Basis> = _baselineBasis.asStateFlow()
+
+    private val _baselineSuggestion = MutableStateFlow<NoiseBaselineAdvisor.Suggestion?>(null)
+    val baselineSuggestion: StateFlow<NoiseBaselineAdvisor.Suggestion?> = _baselineSuggestion.asStateFlow()
+
+    private var baselineJob: Job? = null
+
+    /** 保留原始采样序列，切换边距/口径时可离线重算而不必重新采样 */
+    private var baselineMotion: List<IntArray>? = null
+    private var baselineStatic: List<IntArray>? = null
+
+    /**
+     * 无人基线采样：保持门口无人 [BASELINE_SAMPLE_SECONDS] 秒，收集每门完整能量序列。
+     * 采集到"底噪检测进行中"（目标状态 0x04）则作废本次样本——原因见
+     * [EnergySeriesCollector.noiseDetectionRunning] 与 [NoiseBaselineAdvisor] 类注释。
+     */
+    fun startBaselineSampling() {
+        if (_baselineSampling.value) return
+        val params = deviceInfo.value?.params
+        if (params == null) {
+            _baselineInfo.value = "设备参数未就绪，请先连接雷达并等待参数读取完成"
+            return
+        }
+        val collector = EnergySeriesCollector(params.motionSensitivities.size)
+        _baselineSampling.value = true
+        _baselineRemain.value = BASELINE_SAMPLE_SECONDS
+        _baselineInfo.value = null
+        baselineJob = viewModelScope.launch {
+            val energyJob = launch {
+                gateEnergies.collect { ge ->
+                    if (ge != null) collector.onGateEnergies(ge.moveGateEnergies, ge.staticGateEnergies)
+                }
+            }
+            val stateJob = launch {
+                connection.radarState.collect { s ->
+                    if (s != null) collector.onTargetState(s.targetState)
+                }
+            }
+            repeat(BASELINE_SAMPLE_SECONDS) { i ->
+                delay(1_000)
+                _baselineRemain.value = BASELINE_SAMPLE_SECONDS - i - 1
+            }
+            energyJob.cancel()
+            stateJob.cancel()
+            _baselineSampling.value = false
+            _baselineRemain.value = 0
+
+            if (collector.noiseDetectionRunning) {
+                _baselineInfo.value = "采样期间检测到设备正在跑底噪检测，本次样本已作废。" +
+                    "底噪检测结束时设备会写回它自己的建议灵敏度，会覆盖这里的设置——请等它结束后重新采样。"
+                return@launch
+            }
+            if (collector.sampleCount == 0) {
+                _baselineInfo.value = "本次没采到能量数据：请确认设备已连接（工程模式会在离开本页时自动关闭）"
+                return@launch
+            }
+            baselineMotion = collector.motionSeries()
+            baselineStatic = collector.staticSeries()
+            recomputeBaseline()
+            _baselineInfo.value = "采样完成：${collector.sampleCount} 个样本/门。可直接调整边距看效果，或点「一键应用」写入设备"
+        }
+    }
+
+    fun cancelBaselineSampling() {
+        baselineJob?.cancel()
+        baselineJob = null
+        _baselineSampling.value = false
+        _baselineRemain.value = 0
+        _baselineInfo.value = "已取消本次采样"
+    }
+
+    fun setBaselineMargin(value: Int) {
+        _baselineMargin.value = value
+        recomputeBaseline()
+    }
+
+    fun setBaselineBasis(value: NoiseBaselineAdvisor.Basis) {
+        _baselineBasis.value = value
+        recomputeBaseline()
+    }
+
+    /** 一键应用：复用既有的逐门写入 + 回读校验（含近门静止不可写的容错） */
+    fun applyBaseline() {
+        val s = _baselineSuggestion.value
+        if (s == null) {
+            _baselineInfo.value = "还没有可应用的建议，请先完成一次无人采样"
+            return
+        }
+        apply(s.motionSensitivities, s.staticSensitivities)
+    }
+
+    private fun recomputeBaseline() {
+        val motion = baselineMotion ?: return
+        val static = baselineStatic ?: return
+        val params = deviceInfo.value?.params ?: return
+        _baselineSuggestion.value = NoiseBaselineAdvisor.suggest(
+            motionSeries = motion,
+            staticSeries = static,
+            currentMotion = params.motionSensitivities,
+            currentStatic = params.staticSensitivities,
+            maxMoveGate = params.maxMoveGate,
+            maxStaticGate = params.maxStaticGate,
+            margin = _baselineMargin.value,
+            basis = _baselineBasis.value,
+        )
+    }
+
+    override fun onCleared() {
+        baselineJob?.cancel()
+        super.onCleared()
+    }
+
+    companion object {
+        /** 无人基线采样时长：比部署向导的 30s 长，因为"浮动上界"要用分位数估计 */
+        const val BASELINE_SAMPLE_SECONDS = 45
+    }
 }
 
 /**
@@ -156,6 +292,12 @@ fun SensitivityScreen(
     val applying by viewModel.applying.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val messageIsError by viewModel.messageIsError.collectAsStateWithLifecycle()
+    val baselineSampling by viewModel.baselineSampling.collectAsStateWithLifecycle()
+    val baselineRemain by viewModel.baselineRemain.collectAsStateWithLifecycle()
+    val baselineInfo by viewModel.baselineInfo.collectAsStateWithLifecycle()
+    val baselineMargin by viewModel.baselineMargin.collectAsStateWithLifecycle()
+    val baselineBasis by viewModel.baselineBasis.collectAsStateWithLifecycle()
+    val baselineSuggestion by viewModel.baselineSuggestion.collectAsStateWithLifecycle()
     val params = deviceInfo?.params
     val resolutionCm = if (deviceInfo?.resolution02m == true) 20 else 75
 
@@ -227,6 +369,27 @@ fun SensitivityScreen(
                     energies = gateEnergies,
                     motion = motion,
                     static = static,
+                )
+            }
+
+            // ---- 无人基线定参（把阈值压到"刚好高于环境浮动"）----
+            item {
+                NoiseBaselineCard(
+                    enabled = !applying,
+                    sampling = baselineSampling,
+                    remainSeconds = baselineRemain,
+                    sampleSeconds = SensitivityViewModel.BASELINE_SAMPLE_SECONDS,
+                    info = baselineInfo,
+                    margin = baselineMargin,
+                    basis = baselineBasis,
+                    suggestion = baselineSuggestion,
+                    applying = applying,
+                    resolutionCm = resolutionCm,
+                    onStart = viewModel::startBaselineSampling,
+                    onCancel = viewModel::cancelBaselineSampling,
+                    onMargin = viewModel::setBaselineMargin,
+                    onBasis = viewModel::setBaselineBasis,
+                    onApply = viewModel::applyBaseline,
                 )
             }
 

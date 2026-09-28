@@ -1,6 +1,7 @@
 package com.dormradar.app.core.log
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -9,6 +10,7 @@ import org.junit.Test
 /**
  * 距离诊断自动分析（DistanceDiagAnalysis）：
  * 判定规则是本轮"让工具自己出结论"的核心，必须钉住——否则阈值一改就没人知道结论还准不准。
+ * 引导模式的分段依据（阶段标记 vs 设备自报状态）尤其要钉住，那是误报率/检出率能不能算出来的前提。
  */
 class DistanceDiagAnalysisTest {
 
@@ -18,12 +20,14 @@ class DistanceDiagAnalysisTest {
         detect: Int,
         hasTarget: Boolean = true,
         frameType: String = "basic",
+        phase: Int = DiagPhase.NONE,
         display: Int? = null,
         inHold: Boolean = false,
     ) = DistanceDiagSample(
         wallClockMs = 1_700_000_000_000L + relMs,
         relMs = relMs,
         frameType = frameType,
+        phase = phase,
         targetState = if (hasTarget) 2 else 0,
         moveDistanceCm = 0,
         moveEnergy = 0,
@@ -35,6 +39,8 @@ class DistanceDiagAnalysisTest {
         moveGateEnergies = null,
         staticGateEnergies = null,
     )
+
+    // ================= 显示层 =================
 
     @Test
     fun `空样本返回 null`() {
@@ -71,6 +77,21 @@ class DistanceDiagAnalysisTest {
     }
 
     @Test
+    fun `无人行的 UI 输出 -1 不计入显示层差异`() {
+        val samples = listOf(
+            s(0, 200),
+            s(1000, 0, hasTarget = false),
+            s(2000, 0, hasTarget = false),
+        )
+        val sum = DistanceDiagAnalysis.summarize(samples)!!
+        assertEquals(0, sum.uiDiffRows)
+        // 有人段恒定、无人段读数为 0（设备正常的"无目标"值，不是回波）→ 正常稳定
+        assertEquals(DistanceDiagAnalysis.VerdictKind.STABLE, sum.kind)
+    }
+
+    // ================= 旧数据（无阶段标记，按设备自报状态切分）=================
+
+    @Test
     fun `无人段读数恒定判为固定物回波`() {
         val samples = listOf(
             s(0, 32, hasTarget = false),
@@ -78,10 +99,12 @@ class DistanceDiagAnalysisTest {
             s(2000, 33, hasTarget = false),
         )
         val sum = DistanceDiagAnalysis.summarize(samples)!!
+        assertFalse(sum.guided)
         assertEquals(DistanceDiagAnalysis.VerdictKind.STATIC_ECHO, sum.kind)
-        assertEquals(32, sum.withoutTarget!!.detectMedian)
-        assertEquals(1, sum.withoutTarget!!.spread)
-        assertTrue(sum.findings.any { it.contains("没有捕捉到") })   // 缺少有人段对照
+        assertEquals(32, sum.noPerson!!.detectMedian)
+        assertEquals(1, sum.noPerson!!.spread)
+        assertNull(sum.falsePositiveRate)
+        assertTrue(sum.findings.any { it.contains("没有") && it.contains("有人") })
     }
 
     @Test
@@ -91,7 +114,7 @@ class DistanceDiagAnalysisTest {
         )
         val sum = DistanceDiagAnalysis.summarize(samples, resolutionCm = 75)!!
         assertEquals(DistanceDiagAnalysis.VerdictKind.TARGET_MOVING, sum.kind)
-        assertEquals(300, sum.withTarget!!.spread)
+        assertEquals(300, sum.person!!.spread)
         assertTrue(sum.verdict.contains("不应做平滑"))
     }
 
@@ -107,6 +130,17 @@ class DistanceDiagAnalysisTest {
     }
 
     @Test
+    fun `只有无人样本且读数为零_判为样本不足`() {
+        val samples = listOf(
+            s(0, 0, hasTarget = false),
+            s(1000, 0, hasTarget = false),
+        )
+        val sum = DistanceDiagAnalysis.summarize(samples)!!
+        assertEquals(DistanceDiagAnalysis.VerdictKind.INSUFFICIENT, sum.kind)
+        assertTrue(sum.verdict.contains("无人"))
+    }
+
+    @Test
     fun `逐帧抖动只比较同帧类型_不把 basic 与 engineering 互相比`() {
         // 交替出现且读数差异巨大；若按到达顺序求差会得到 200 的假跳变
         val samples = listOf(
@@ -116,11 +150,81 @@ class DistanceDiagAnalysisTest {
             s(300, 100, frameType = "engineering"),
         )
         val sum = DistanceDiagAnalysis.summarize(samples)!!
-        assertEquals(0, sum.withTarget!!.maxJump)
-        assertEquals(0, sum.withTarget!!.jitterP90)
+        assertEquals(0, sum.person!!.maxJump)
+        assertEquals(0, sum.person!!.jitterP90)
         assertEquals(2, sum.basicRows)
         assertEquals(2, sum.engRows)
     }
+
+    // ================= 引导模式（按阶段标记切分，能算误报率/检出率）=================
+
+    @Test
+    fun `引导模式按阶段切分_不按设备自报状态`() {
+        // 无人阶段里设备全部误判"有人"；若按 hasTarget 切分，无人段会变成空
+        val samples = List(10) {
+            s(it * 1000L, 40, hasTarget = true, phase = DiagPhase.NO_PERSON)
+        } + List(10) {
+            s(10_000L + it * 1000L, 300, hasTarget = true, phase = DiagPhase.PERSON)
+        }
+        val sum = DistanceDiagAnalysis.summarize(samples)!!
+        assertTrue(sum.guided)
+        assertEquals(10, sum.noPerson!!.rows)
+        assertEquals(10, sum.person!!.rows)
+        assertEquals(1.0, sum.falsePositiveRate!!, 0.0001)
+        assertEquals(1.0, sum.detectionRate!!, 0.0001)
+        assertEquals(DistanceDiagAnalysis.VerdictKind.FALSE_POSITIVE, sum.kind)
+        assertTrue(sum.verdict.contains("无人基线定参"))
+    }
+
+    @Test
+    fun `误报率与检出率按帧数计算`() {
+        // 无人阶段 20 帧中 3 帧误判 → 15%；有人阶段 20 帧中 18 帧检出 → 90%
+        val noPerson = List(20) {
+            s(it * 1000L, 40, hasTarget = it < 3, phase = DiagPhase.NO_PERSON)
+        }
+        val person = List(20) {
+            s(20_000L + it * 1000L, 300, hasTarget = it < 18, phase = DiagPhase.PERSON)
+        }
+        val sum = DistanceDiagAnalysis.summarize(noPerson + person)!!
+        assertEquals(0.15, sum.falsePositiveRate!!, 0.0001)
+        assertEquals(0.90, sum.detectionRate!!, 0.0001)
+        // 15% 未达误报警戒线、90% 检出正常 → 不被判为误报/漏报
+        assertTrue(sum.kind != DistanceDiagAnalysis.VerdictKind.FALSE_POSITIVE)
+        assertTrue(sum.kind != DistanceDiagAnalysis.VerdictKind.MISSED_DETECTION)
+        assertTrue(sum.findings.any { it.contains("误报率 15%") })
+        assertTrue(sum.findings.any { it.contains("检出率 90%") })
+    }
+
+    @Test
+    fun `有人阶段几乎检不出_判为漏报主导`() {
+        val noPerson = List(10) {
+            s(it * 1000L, 0, hasTarget = false, phase = DiagPhase.NO_PERSON)
+        }
+        val person = List(10) {
+            s(10_000L + it * 1000L, 300, hasTarget = false, phase = DiagPhase.PERSON)
+        }
+        val sum = DistanceDiagAnalysis.summarize(noPerson + person)!!
+        assertEquals(0.0, sum.detectionRate!!, 0.0001)
+        assertEquals(DistanceDiagAnalysis.VerdictKind.MISSED_DETECTION, sum.kind)
+        assertTrue(sum.verdict.contains("阈值可能被抬得过高"))
+    }
+
+    @Test
+    fun `引导模式正常场景_检出好误报低则看物理结论`() {
+        val noPerson = List(10) {
+            s(it * 1000L, 30, hasTarget = false, phase = DiagPhase.NO_PERSON)
+        }
+        val person = List(10) {
+            s(10_000L + it * 1000L, 250 + it * 10, hasTarget = true, phase = DiagPhase.PERSON)
+        }
+        val sum = DistanceDiagAnalysis.summarize(noPerson + person, resolutionCm = 75)!!
+        assertEquals(0.0, sum.falsePositiveRate!!, 0.0001)
+        assertEquals(1.0, sum.detectionRate!!, 0.0001)
+        assertEquals(DistanceDiagAnalysis.VerdictKind.TARGET_MOVING, sum.kind)
+        assertEquals(90, sum.person!!.spread)
+    }
+
+    // ================= 帧率 =================
 
     @Test
     fun `帧率按帧类型分别计算_不叠加翻倍`() {
@@ -136,30 +240,6 @@ class DistanceDiagAnalysisTest {
     }
 
     @Test
-    fun `无人行的 UI 输出 -1 不计入显示层差异`() {
-        val samples = listOf(
-            s(0, 200),
-            s(1000, 0, hasTarget = false),
-            s(2000, 0, hasTarget = false),
-        )
-        val sum = DistanceDiagAnalysis.summarize(samples)!!
-        assertEquals(0, sum.uiDiffRows)
-        // 有人段恒定、无人段读数为 0（设备正常的"无目标"值，不是回波）→ 正常稳定
-        assertEquals(DistanceDiagAnalysis.VerdictKind.STABLE, sum.kind)
-    }
-
-    @Test
-    fun `只有无人样本且读数为零_判为样本不足`() {
-        val samples = listOf(
-            s(0, 0, hasTarget = false),
-            s(1000, 0, hasTarget = false),
-        )
-        val sum = DistanceDiagAnalysis.summarize(samples)!!
-        assertEquals(DistanceDiagAnalysis.VerdictKind.INSUFFICIENT, sum.kind)
-        assertTrue(sum.verdict.contains("无人"))
-    }
-
-    @Test
     fun `帧率数值符合公式`() {
         val basics = (0 until 10).map { s(it * 1000L, 200, frameType = "basic") }
         val sum = DistanceDiagAnalysis.summarize(basics)!!
@@ -167,5 +247,16 @@ class DistanceDiagAnalysisTest {
         assertEquals(10 * 1000.0 / 9_000.0, sum.basicFps, 0.0001)
         assertEquals(0.0, sum.engFps, 0.0001)
         assertTrue(sum.findings.any { it.contains("帧率") && it.contains("basic") })
+    }
+
+    @Test
+    fun `分段统计非空则字段自洽`() {
+        val sum = DistanceDiagAnalysis.summarize(listOf(s(0, 120), s(1000, 340)))!!
+        assertNotNull(sum.person)
+        assertEquals(2, sum.person!!.rows)
+        assertEquals(2, sum.person!!.targetFrames)
+        assertEquals(120, sum.person!!.detectMin)
+        assertEquals(340, sum.person!!.detectMax)
+        assertEquals(1.0, sum.person!!.targetRate, 0.0001)
     }
 }

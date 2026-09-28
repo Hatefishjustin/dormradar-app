@@ -6,13 +6,14 @@ import org.junit.Test
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-/** 距离诊断 CSV 格式化 + 环形缓冲 + relMs 单调性 */
+/** 距离诊断 CSV 格式化 + 环形缓冲 + relMs 单调性 + 阶段标记 */
 class DistanceDiagTest {
 
     private fun sample(
         detect: Int = 300,
         display: Int = 295,
         frameType: String = "basic",
+        phase: Int = DiagPhase.NONE,
         targetState: Int = 2,
         inHold: Boolean = false,
         moveGates: IntArray? = null,
@@ -22,6 +23,7 @@ class DistanceDiagTest {
             .parse("2026-09-28 15:30:00.123")!!.time,
         relMs = 1500,
         frameType = frameType,
+        phase = phase,
         targetState = targetState,
         moveDistanceCm = 0,
         moveEnergy = 0,
@@ -51,17 +53,18 @@ class DistanceDiagTest {
         )
         val cols = line.split(',')
         assertEquals(DistanceDiagFormats.COLUMN_COUNT, cols.size)
-        assertEquals(15, cols.size)
+        assertEquals(16, cols.size)
         assertEquals("15:30:00.123", cols[1])
         assertEquals("1500", cols[2])
         assertEquals("basic", cols[3])
-        assertEquals("2", cols[4])
-        assertEquals("1", cols[5])          // has_target
-        assertEquals("300", cols[10])       // 原始检测距离
-        assertEquals("295", cols[11])       // 显示管线输出
-        assertEquals("0", cols[12])         // 保持标记
-        assertEquals("1;2;3", cols[13])
-        assertEquals("4;5", cols[14])
+        assertEquals("0", cols[4])          // phase
+        assertEquals("2", cols[5])          // target_state
+        assertEquals("1", cols[6])          // has_target
+        assertEquals("300", cols[11])       // 原始检测距离
+        assertEquals("295", cols[12])       // 显示管线输出
+        assertEquals("0", cols[13])         // 保持标记
+        assertEquals("1;2;3", cols[14])
+        assertEquals("4;5", cols[15])
     }
 
     @Test
@@ -73,26 +76,33 @@ class DistanceDiagTest {
     }
 
     @Test
+    fun `phase 列写入引导阶段`() {
+        assertEquals("1", DistanceDiagFormats.line(sample(phase = DiagPhase.NO_PERSON)).split(',')[4])
+        assertEquals("2", DistanceDiagFormats.line(sample(phase = DiagPhase.PERSON)).split(',')[4])
+        assertEquals("0", DistanceDiagFormats.line(sample(phase = DiagPhase.NONE)).split(',')[4])
+    }
+
+    @Test
     fun `has_target 列按状态换算_底噪扩展状态不算有人`() {
         // 0=无人 / 1运动 / 2静止 / 3两者 / 4~6 底噪检测阶段
-        assertEquals("0", DistanceDiagFormats.line(sample(targetState = 0)).split(',')[5])
-        assertEquals("1", DistanceDiagFormats.line(sample(targetState = 1)).split(',')[5])
-        assertEquals("1", DistanceDiagFormats.line(sample(targetState = 3)).split(',')[5])
-        assertEquals("0", DistanceDiagFormats.line(sample(targetState = 4)).split(',')[5])
-        assertEquals("0", DistanceDiagFormats.line(sample(targetState = 5)).split(',')[5])
+        assertEquals("0", DistanceDiagFormats.line(sample(targetState = 0)).split(',')[6])
+        assertEquals("1", DistanceDiagFormats.line(sample(targetState = 1)).split(',')[6])
+        assertEquals("1", DistanceDiagFormats.line(sample(targetState = 3)).split(',')[6])
+        assertEquals("0", DistanceDiagFormats.line(sample(targetState = 4)).split(',')[6])
+        assertEquals("0", DistanceDiagFormats.line(sample(targetState = 5)).split(',')[6])
     }
 
     @Test
     fun `保持窗口标记写入 ui_hold 列`() {
         val cols = DistanceDiagFormats.line(sample(inHold = true)).split(',')
-        assertEquals("1", cols[12])
+        assertEquals("1", cols[13])
     }
 
     @Test
     fun `basic 帧门能量列为空`() {
         val cols = DistanceDiagFormats.line(sample()).split(',')
-        assertEquals("", cols[13])
         assertEquals("", cols[14])
+        assertEquals("", cols[15])
     }
 
     @Test
@@ -154,6 +164,34 @@ class DistanceDiagTest {
         r.onRawFrame("basic", 0, 0, 0, 0, 0, 0, null, null)
         assertEquals(-1, r.samples.value.last().displayDistanceCm)
         assertTrue(r.samples.value.last().inHold)
+    }
+
+    // ---- 阶段标记 ----
+
+    @Test
+    fun `setPhase 只影响之后写入的样本`() {
+        val r = DistanceDiagRecorder()
+        r.start()
+        r.onRawFrame("basic", 0, 0, 0, 0, 0, 0, null, null)
+        r.setPhase(DiagPhase.NO_PERSON)
+        r.onRawFrame("basic", 0, 0, 0, 0, 0, 10, null, null)
+        r.setPhase(DiagPhase.PERSON)
+        r.onRawFrame("basic", 1, 0, 0, 0, 0, 200, null, null)
+
+        val s = r.samples.value
+        assertEquals(DiagPhase.NONE, s[0].phase)
+        assertEquals(DiagPhase.NO_PERSON, s[1].phase)
+        assertEquals(DiagPhase.PERSON, s[2].phase)
+    }
+
+    @Test
+    fun `clear 重置阶段标记`() {
+        val r = DistanceDiagRecorder()
+        r.start()
+        r.setPhase(DiagPhase.PERSON)
+        r.clear()
+        r.onRawFrame("basic", 0, 0, 0, 0, 0, 0, null, null)
+        assertEquals(DiagPhase.NONE, r.samples.value.first().phase)
     }
 
     // ---- relMs 单调性（2026-09-28 修正的缺陷）----
