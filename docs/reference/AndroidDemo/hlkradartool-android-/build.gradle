@@ -1,0 +1,35 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+buildscript {
+    ext.kotlin_version = "1.4.10"
+    repositories {
+        google()
+        mavenCentral()
+        jcenter()
+        maven { url 'https://repo1.maven.org/maven2/' }
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:4.1.2'
+//        classpath 'com.android.tools.build:gradle:3.5.1'
+
+
+        classpath 'com.github.dcendents:android-maven-gradle-plugin:1.4.1'
+        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.0'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.6.10'
+
+        classpath 'com.novoda:bintray-release:0.9.1'
+        // NOTE: Do not place your appl ication dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        jcenter() // Warning: this repository is going to shut down soon
+        maven { url 'https://repo1.maven.org/maven2/' }
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

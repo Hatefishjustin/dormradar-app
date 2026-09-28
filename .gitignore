@@ -1,0 +1,26 @@
+# Gradle
+.gradle/
+build/
+app/build/
+local.properties
+.kotlin/
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+
+# 签名与凭据（项目纪律：禁止提交 keystore / token）
+*.jks
+*.keystore
+keystore.properties
+
+# 参考资料里的 macOS 打包残留
+__MACOSX/
+._*
+
+# AI 协作缓存（docs/ 才是交接契约，此处不进版本库）
+.workbuddy/

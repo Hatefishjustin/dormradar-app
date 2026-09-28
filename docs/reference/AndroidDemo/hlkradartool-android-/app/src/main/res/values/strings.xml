@@ -1,0 +1,538 @@
+<resources>
+    <string name="app_name">HLKRadarTool</string>
+    <!--    <string name="app_name">HLKRadar-Beta</string>-->
+
+    <!-- BaseActivity -->
+    <string name="qing_shaohou">请稍后...</string>
+    <string name="lanya_duankai_tuihui_liebiao">蓝牙连接已断开，即将退回列表页面</string>
+
+
+    <!-- DemoApplication -->
+    <string name="fason_shibai">数据发送失败</string>
+    <string name="fasong_chaoshi">数据发送超时</string>
+    <string name="shebei_wei_lianjie">设备未连接！</string>
+
+
+    <!-- FirstActivity -->
+    <string name="shouci_yuedu_biaoti">本应用功能</string>
+    <string name="shouci_yuedu">
+        \n1,蓝牙模式下，通过蓝牙搜索附近设备，并实现蓝牙的方式控制设备工作，为了该功能，需要您允许 “获取设备的位置信息” 权限，才能实现。
+        \n2,本应用支持远程下载设备固件，OTA的方式给设备升级程序，为了该功能，需要您允许“文件存储”权限，才能实现。
+        \n保证只在应用开启时才会使用，不会在后台和其他时候采集任何隐私信息，更不会泄露给第三方。</string>
+    <string name="yisi_xieyi_info">
+        在此特别提醒您在成为用户之前，请认真阅读本《海凌科隐私协议》，确保您充分理解本协议中各条款。请您审慎阅读并选择接受或不接受协议。您使用行为将被视为对本协议的接受。本协议约定深圳海凌科电子有限公司（以下简称“深圳海凌科”）与用户之间关于“HLKRadarTool”软件服务的权利义务。“用户”是指使用本软件的个人或公司。本协议可由深圳海凌科随时更新，更新后的协议条款一旦公布即代替原来的协议条款，恕不再另外通知，用户可在本APP中查阅最新版协议条款。在修改协议条款后，如果用户不接受修改后的条款，请立刻停止使用“HLKRadarTool”提供的服务，用户继续使用服务将被视为接受修改后的协议。
+        \n\n一.隐私政策
+        \n在您使用本服务的过程中，我们可能会以如下方式收集您的位置信息，本声明解释了这些情况下的信息使用情况，本服务非常重视对您的个人隐私保护，在您使用本服务前，请您仔细阅读以下声明。
+        \n\n二.本服务需使用以下权限
+        \n1.蓝牙权限申请。应用是蓝牙通讯，需要您打开蓝牙的权限，才能与雷达硬件进行通讯连接。
+        \n2.地理位置数据。为您提供服务，我们可能会通过存储手机中且可通过您的IP地址来接收您的设备地理位置信息以及与位置有关的相关信息。
+        \n3.文件存储权限。远程下载设备固件到本地存储，避免重复下载，实现OTA升级程序的相关功能。
+        \n\n三.权限用途说明
+        \n1.”HLKRadarTool”使用蓝牙功能连接雷达设备，两设备通讯需要用户打开手机的定位服务和软件的位置获取权限。
+        \n2.”HLKRadarTool”蓝牙权限申请。应用是蓝牙通讯，需要您打开蓝牙的权限，才能与雷达硬件进行通讯连接。
+        \n3.”HLKRadarTool”文件存储权限。为了实现OTA升级设备程序，避免远程重复下载相同固件，浪费流量的情况，我们会把下好的固件存在本地文件，下次一直使用。
+        \n\n四.其他平台
+        \n1.”HLKRadarTool”使用到的其他平台SDK
+        \n2.为了APP后续优化，获取崩溃日志，所以集成\'com.umeng\'，友盟SDK等库。
+        \n3.收集个人信息类型：设备信息（IMEI/MAC/Android ID/IDFA/OpenUDID/GUID/SIM卡IMSI/ICCID/地理位置等）。
+        \n\n五.用户个人隐私信息保护
+        \n1.本服务获取手机数据，是为了本服务正常使用的必要性。
+        \n2.为了保障您以及您最终用户的信息安全，我们将按照行业通行标准、努力采取合理的物理、电子和管理方面的安全措施来保护您的信息，并尽最大合理努力使您以及您最终用户的信息不会被泄漏、毁损或者丢失。在您的APP与服务器之间交换数据时受SSL协议加密保护；我们对网站提供HTTPS协议安全浏览方式；我们会使用加密技术提高个人信息的安全性；我们会使用受信赖的保护机制防止个人信息遭到恶意攻击；我们会部署访问控制机制，尽力确保只有授权人员才可访问个人信息；以及我们会举办安全和隐私保护培训课程，加强员工对于保护个人信息重要性的认识。
+        \n3.我们会根据您对APP的使用程度，设置保留期，在您的个人信息超出保留期间后，我们会根据适用法律的要求删除您的个人信息，或使其匿名化处理。
+        \n\n六.其他
+        \n1.郑重提醒用户注意本协议中免除深圳海凌科责任和限制用户权利的条款。请用户仔细阅读，自主考虑风险。未成年人应在法定监护人的陪同下阅读本协议。
+        \n2。本协议的任何条款无论因何种原因无效或不惧可执行性，其余条款仍有效，对双方具有约束力。
+    </string>
+    <string name="tian_xie">填写</string>
+    <string name="yinsi_xieyi">隐私协议</string>
+    <string name="yinsi">隐私协议</string>
+    <string name="qu_xiao">取消</string>
+    <string name="que_ding">确定</string>
+    <string name="tong_yi">同意</string>
+    <string name="bu_tonyi">拒绝</string>
+    <string name="xitong_tishi">系统提示</string>
+    <string name="queshao_quanxian_qianwang_shezhi">缺少必要权限，请前往设置</string>
+    <string name="liji_qianwang">立即前往</string>
+    <string name="queshao_quanxian">缺少主要权限, 无法运行！</string>
+
+
+    <!-- ServicePolicyInfoActivity -->
+    <string name="fan_hui">返回</string>
+    <string name="yi_yuedu">已阅读</string>
+
+
+    <!-- BLEListActivity -->
+    <string name="bu_zhichi_lanya">不支持蓝牙功能！</string>
+    <string name="shebei_liebiao">设备列表</string>
+    <string name="shebei_liebiao2">设备列表</string>
+    <string name="leida_shebei_sousuo_zhong">雷达设备搜索中...</string>
+    <string name="jiaoyan_mima">校验密码</string>
+    <string name="moren_mima">默认密码：HiLink (区分大小写)</string>
+    <string name="shuru_kongzhi_mima">请输入6位的控制密码</string>
+    <string name="mima_cuowu">密码错误</string>
+    <string name="lanya_mingcheng">蓝牙名称</string>
+    <string name="dengdai_shengji">(等待升级)</string>
+    <string name="banben_gengxing">版本更新啦</string>
+    <string name="banben">1、版本：</string>
+    <string name="daxiao">2、大小：</string>
+    <string name="neirong">3、内容：</string>
+    <string name="gengduo_gongneng_tansuo_4">4、更多功能等你探索</string>
+    <string name="gengduo_gongneng_tansuo_3">3、更多功能等你探索</string>
+    <string name="tuichu_ceshi_moshi">退出测试模式</string>
+    <string name="jingru_ceshi_moshi">进入测试模式</string>
+    <string name="dakai_lanya_gongneng">请打开蓝牙功能，否则将无法使用</string>
+    <string name="dakai_dingwei_gongneng">请打开手机定位功能，否则将无法搜索到附近的雷达设备</string>
+    <string name="lianjie_shibai_zaishi_yichi">连接失败，请将手机和设备尽量靠近，再试一次！</string>
+    <string name="chongshi">重试</string>
+    <string name="yanzheng_mima">验证密码...</string>
+    <string name="zaici_dianji_tuichu_yingyong">再次点击，退出应用</string>
+    <string name="shebei_qige_mingcheng">给设备起个名称</string>
+    <string name="shuru_mingcheng">请输入名称</string>
+    <string name="mingcheng_yi_cunzai">请输入有效的内容！</string>
+    <string name="qing_qianwan_yingyong_guanli_dakai_quanxian">请前往应用管理，打开权限！</string>
+    <string name="queshao_quanxian2">缺少权限</string>
+    <string name="fujinshebei_dingwei_quanxian">
+        蓝牙模式下，通过蓝牙搜索附近设备，并实现蓝牙的方式控制设备工作，为了该功能，需要您允许 “获取设备的位置信息” 权限，才能实现。
+    </string>
+    <string name="du_xie_quanxian">
+        本应用支持远程下载设备固件，OTA的方式给设备升级程序，为了该功能，需要您允许“文件存储”权限，才能实现。
+    </string>
+    <string name="queshao_quanxian3">缺少搜索附近设备权限或定位权限</string>
+    <string name="shiyong_shuoming">使用说明</string>
+
+
+    <!-- ControlBLEActivity -->
+    <string name="shebei_mingcheng">设备名称</string>
+    <string name="cangshu">更多</string>
+    <string name="cangshu_shezhi">参数设置</string>
+    <string name="cangshu_shezhi2">参数设置</string>
+    <string name="yundong_mubiao">运动目标</string>
+    <string name="jingzhi_mubiao">静止目标</string>
+    <string name="limi">厘米</string>
+    <string name="gongcheng_moshi">工程模式</string>
+    <string name="yundong_zuiyuan_julimeng">运动探测点数量</string>
+    <string name="wuren_chixu_shijian">无人持续时间:</string>
+    <string name="wuren_chixu_shijian_miao">(0~65535秒)</string>
+    <string name="jingzhi_zuiyuan_julimeng">静止探测点数量</string>
+    <string name="juli_tongji_shijian">探测统计时间</string>
+    <string name="juli_tongji_shijian2">探测统计时间</string>
+    <string name="zhudong_shuaxing">主动刷新</string>
+    <string name="huifu_chuchang">恢复出厂</string>
+    <string name="mokuai_chongqi">模块重启</string>
+    <string name="neng">能</string>
+    <string name="liang">量</string>
+    <string name="zhi">值</string>
+    <string name="ju">距</string>
+    <string name="li">离</string>
+    <string name="lanya_jijian_duankai">模块重启，蓝牙连接即将断开，返回列表页面</string>
+    <string name="shezhi_shibai">,设置失败！</string>
+    <string name="gongcheng_moshi_yi_dakai">工程模式已打开！</string>
+    <string name="gongcheng_moshi_yi_guanbi">工程模式已关闭！</string>
+
+    <string name="jiance_dakai_gongcheng_moshi">检测底噪需要打开工程模式，是否打开？</string>
+    <string name="shuru_yanshijiance_dizaoshijian">请输入延时检测和底噪时间</string>
+    <string name="meiyoushujubunengfuzhi">没有数据，复制失败</string>
+
+    <string name="chaxun_shibai">查询失败！</string>
+    <string name="duqu_peizhi_chenggong">读取配置成功</string>
+    <string name="zhengzai_chongqi">正在重启</string>
+    <string name="guang">光</string>
+    <string name="min">敏</string>
+
+
+
+
+    <!-- SetParameterActivity -->
+    <string name="gujian_banben">固件版本:</string>
+    <string name="julimeng_fengbianlv">触发间距：</string>
+    <string name="kongzhi_mima">控制密码：</string>
+    <string name="wuren_chixu_shijian2">无人持续时间(s)：</string>
+    <string name="julimen_shulian">探测点数量：</string>
+    <string name="botelv_shezhi">波特率设置:(默认256000)</string>
+    <string name="botelv_shezhi_2412">波特率设置:(默认115200)</string>
+    <string name="xuanze_botelv">选择波特率</string>
+    <string name="yundong_lingmingdu_jingzhi_lingmingdu">运动能量值：0-100；静止能量值：0-100</string>
+    <string name="juli_meng">探测范围</string>
+    <string name="lingming_du">灵敏度</string>
+    <string name="yundong_lingmingdu">运动能量值</string>
+    <string name="jingzhi_lingmingdu">静止能量值</string>
+    <string name="tance_juli">探测距离</string>
+    <string name="caozuo">操作</string>
+    <string name="zhijie_xiugai">请直接在上面的表格修改后点击右边设置按钮后生效!</string>
+    <string name="julimeng_shezhi">全部设置！</string>
+    <string name="yundong_lingmingdu2">运动能量值：</string>
+    <string name="jingzhi_lingmingdu2">静止能量值：</string>
+    <string name="cangshu_shezhi_chengong">参数设置成功！</string>
+    <string name="ke_shengji">(可升级)</string>
+    <string name="queding_huifu_chuchang_shezhi">确定要恢复出厂设置吗？</string>
+    <string name="chongzhi_chenggong">重置成功！</string>
+    <string name="shezhi_chenggong">设置成功！</string>
+
+    <string name="zhunbeu_dakai_shebei">准备打开设备</string>
+    <string name="shebei_dakai_chenggong">设备打开成功，开始扫描设备</string>
+    <string name="duqu_canshu_shibai">读取参数失败</string>
+    <string name="jieshu_peizhi_zhiling_fasong_shibai">结束配置指令发送失败！</string>
+    <string name="duqu_peizhi_shibai">设置读取配置失败成功</string>
+    <string name="gongcheng_moshi_kaiqi_chenggong">工程模式开启成功</string>
+    <string name="gongcheng_moshi_kaiqi_shibai">工程模式开启失败！</string>
+    <string name="gongcheng_moshi_guanbi_chenggong">工程模式关闭成功！</string>
+    <string name="gongcheng_moshi_guanbi_shibai">工作模式关闭失败！</string>
+    <string name="huifu_chuchang_chenggong">恢复出厂成功！</string>
+    <string name="huifu_chuchang_shibai">恢复出厂失败！</string>
+    <string name="mokuai_chongqi_shibai">模块重启失败！</string>
+    <string name="nengliang_zhi">能量值！</string>
+    <string name="shezhi">设置</string>
+
+    <string name="juli_men_fenbian_lv_chenggong">设置触发间距成功</string>
+    <string name="juli_men_fenbian_lv_shibai">设置触发间距失败</string>
+    <string name="shezhi_mima_chenggong">设置密码成功</string>
+    <string name="shezhi_mima_shibai">设置密码失败</string>
+    <string name="shezhi_bote_lv_chenggong">设置波特率成功</string>
+    <string name="shezhi_bote_lv_shibai">设置波特率失败</string>
+    <string name="tuichu_shengji_chenggong">退出升级成功</string>
+    <string name="geng_duo">更多</string>
+
+    <string name="shebei_xuyao_chongqi">设备需要重启</string>
+    <string name="liji_chongqi">立即重启</string>
+    <string name="chixu_shijian">持续时间：0~65535</string>
+    <string name="qingshuru_youxiao_neirong">请输入有效的内容!</string>
+    <string name="mi">米</string>
+    <string name="changxian_banben">尝鲜版本:</string>
+    <string name="liji_huoqu">立即获取</string>
+    <string name="guangmin_liandong">光敏联动:(0~255)</string>
+    <string name="guangmin_yuzhi">光敏阈值:(0~255)</string>
+    <string name="guangmin_liandong1">光敏联动</string>
+    <string name="guangganzhi">光感值</string>
+    <string name="guangmin_yuzhi_shezhi">光敏阈值设置</string>
+    <string name="guangmin_liandongquzhi">取值范围：0~255</string>
+    <string name="guangmin_liandongbeizhu">低于/高于设置值且有人，触发信号</string>
+    <string name="diyu_guangmin_liandongbeizhu_2412">低于光敏设置值触发</string>
+    <string name="gaoyu_guangmin_liandongbeizhu_2412">高于光敏设置值触发</string>
+    <string name="guanbi_guangmin_liandongbeizhu_2412">光敏联动关闭</string>
+    <string name="dianji_shezhi_jike_shengxiao">点击设置即可生效</string>
+    <string name="guanbi">关闭</string>
+    <string name="diyu">低于</string>
+    <string name="gaoyu">高于</string>
+    <string name="gujian_huoqu_shibai">固件获取失败：</string>
+    <string name="qing_shuru_0_255_zhijian_dezhi">请输入0~255之间的值</string>
+    <string name="changxian_banben2">尝鲜版本</string>
+    <string name="shengji">升级</string>
+    <string name="shengji_tishi">提醒：尝鲜版本属于新增功能的体验版，可能会出现参数异常等情况，请谨慎使用。</string>
+    <string name="moren_dianping">默认电平：</string>
+    <string name="moren_dianping_2412">触发电平：</string>
+    <string name="dianping_tishi">电平提示</string>
+    <string name="gao_ping">高电平</string>
+    <string name="di_ping">低电平</string>
+    <string name="moren_diping_shuru_gaoping">默认低电平,触发时输出高电平</string>
+    <string name="moren_gaoping_shuru_diping">默认高电平,触发时输出低电平</string>
+    <string name="gengduo_banben">更多版本</string>
+    <string name="dayu_nengliang_zhi_shuchu_xinhao">参考值大于当前能量值时字体为红色</string>
+    <string name="fenbianlv_2412">分辨率</string>
+
+
+    <!-- NewOTAInfoActivity -->
+    <string name="ota_shengji">OTA升级</string>
+    <string name="shebei_id">设备ID：</string>
+    <string name="dangqian_banben">当前版本：</string>
+    <string name="zuixing_banben">升级版本：</string>
+    <string name="gujian_daxiao">固件大小：</string>
+    <string name="tishi_shengji">提示：为提高升级速度，尽量将手机靠近设备，且升级过程中，保证APP处于前台运行，不要锁屏！否则可能会出现升级异常等情况！</string>
+    <string name="kaishi_shengji">开始升级</string>
+    <string name="shengji_zhong">升级中...</string>
+    <string name="zhunbei_gujian">准备固件</string>
+    <string name="xiazai_gujian">下载固件</string>
+    <string name="gujian_xiazai_chenggong">固件下载成功</string>
+    <string name="qiehuan_shengji_zhuangtai">切换升级状态</string>
+    <string name="gujian_xiazai_shibai">固件下载失败：</string>
+    <string name="dianqian_banben_v">当前版本：V</string>
+    <string name="zuixing_banben_v">升级版本：V</string>
+    <string name="jingru_shengji_zhuangtai">进入升级状态</string>
+    <string name="zhunbei_jiaoyan">准备校验</string>
+    <string name="wei_jingru_shengji_zhuangtai">未进入升级状态</string>
+    <string name="shengji_chaoshi">升级超时，请检查设备后再试一次！</string>
+    <string name="shengji_wangcheng">升级完成，请重新连接设备！</string>
+    <string name="shengji_wangcheng_fanghui_liebiao">升级完成，请返回列表页，重新连接设备！</string>
+    <string name="jiaoyan_wenjian">校验文件</string>
+    <string name="zhengzai_shengji">正在升级</string>
+    <string name="jiaoyan_chenggong">校验成功</string>
+    <string name="shengji_chenggong">升级成功</string>
+    <string name="tuichu_shengji_zhuangtai">退出升级状态</string>
+    <string name="shengji_bei_quxiao">升级被取消</string>
+    <string name="shengji_shibai">升级失败：</string>
+    <string name="huoqu_gujian_xinxi_shibai_chongxing_huoqu">获取固件信息失败，重新获取...</string>
+    <string name="shengji_jieshu_shoudong_chongqi">升级结束，但设备重启失败，请手动给设备断电重启一次！</string>
+
+
+    <!-- ShowPDFActivity -->
+    <string name="shiyong_shouce">使用手册</string>
+
+
+    <!-- VersionListActivity -->
+    <string name="xuanze_banben">选择版本</string>
+    <string name="qing_xuanze_banben">请选择版本！</string>
+    <string name="zhengshi_ban">正式版</string>
+    <string name="banben2">版本:</string>
+    <string name="dangqian_banben3">当前版本</string>
+    <string name="daxiao2">大小:</string>
+    <string name="neirong2">内容:</string>
+    <string name="xiangqing">详情</string>
+    <string name="changxiang_ban">尝鲜版</string>
+
+
+    <!-- VersionInfoActivity -->
+    <string name="banben_xianqing">版本详情</string>
+    <string name="banben_xianqing2">版本详情:</string>
+
+
+    <!-- LD2411Activity -->
+    <string name="xia_mengxiang">下门限:</string>
+    <string name="shang_mengxiang">上门限:</string>
+    <string name="jiance_jilu">检测记录</string>
+    <string name="youren_yuanli">有人远离</string>
+    <string name="youren_kaojin">有人靠近</string>
+
+
+    <!-- Control2412Activity -->
+    <string name="weidong_mubiao">微动目标</string>
+    <string name="yundong_fangwei">运动范围(cm)</string>
+    <string name="wuren_dengdai_shijian">无人等待时间(100ms)</string>
+    <string name="weidong_fangwei">微动范围(cm)</string>
+    <string name="chaxun_chenggong">查询成功！</string>
+
+
+    <!-- SetParameter2412Activity -->
+    <string name="jiance_fangwei">检测范围</string>
+    <string name="yundong_fangwei2">运动范围(30~717cm):</string>
+    <string name="weidong_fangwei2">微动范围(30~425cm):</string>
+    <string name="wuren_dengdai_shijian2">无人等待时间(0~65535):</string>
+    <string name="canshu_bu_hefa">参数不合法</string>
+    <string name="ju_li">距离</string>
+
+    <string name="miao">秒</string>
+
+    <!--    //2023-07-11-->
+    <string name="moban_guanli">模版管理</string>
+    <string name="shifou_yingyong_gai_moban">是否将该模版应用至当前设备？</string>
+    <string name="moban_bianji">模版编辑</string>
+    <string name="chong_mingming">重命名</string>
+    <string name="shanchu_moban">删除模版</string>
+
+    <string name="queding_yao_shanchu_moban">确定要删除该模版？</string>
+    <string name="qing_shuru_moban_mingcheng">请输入模版名称</string>
+    <string name="gai_moban_mingcheng_chongfu">该模版名称重复</string>
+    <string name="moban_mingcheng_xiugai_chenggong">模版名称修改成功</string>
+    <string name="moban_mingcheng_xiugai_shibai">模版名称修改失败</string>
+    <string name="muban_weikong">未查询到已有模板</string>
+    <string name="baocun_moban">保存模版</string>
+    <string name="baocun_chenggong">保存成功</string>
+    <string name="baocun_shibai">保存失败</string>
+    <string name="cankao_zhi">参考值</string>
+    <string name="yijian_shezhi">一键设置</string>
+    <string name="ping_jun">平均</string>
+    <string name="zui_da">最大</string>
+    <string name="zhi_neng">智能</string>
+    <string name="qing_xian_dizao_jiance">请先底噪检测</string>
+    <string name="jiance_dizao">检测底噪</string>
+    <string name="liji_jiance">立即检测</string>
+    <string name="cankao_zhi_tishi">参考值大于当前能量值时字体为红色</string>
+
+    <string name="cankao_zhi_laizi_dizao">参考值来自检测底噪的数据!</string>
+    <string name="dizao_tongji">底噪统计</string>
+    <string name="dizao_tishi_1">1底噪：指发生、检查、测量或记录系统中与信号存在与否无关的一切干扰</string>
+    <string name="dizao_tishi_2">2，干扰：检测期间，请保证周围环境处于常态化或静默状态</string>
+    <string name="liji_dakai">立即打开</string>
+    <string name="juli_men_xulie_hao">距离门序列号</string>
+    <string name="zuixiao_zhi">最小值</string>
+    <string name="zuida_zhi">最大值</string>
+    <string name="pingjun_zhi">平均值</string>
+    <string name="juli_men">距离门</string>
+    <string name="yundong_zuixiao_zhi">运动最小值</string>
+    <string name="yundong_zuida_zhi">运动最大值</string>
+    <string name="yundong_pingjun_zhi">运动平均值</string>
+    <string name="jingzhi_zuixiao_zhi">静止最小值</string>
+    <string name="jingzhi_zuida_zhi">静止最大值</string>
+    <string name="jingzhi_pingjun_zhi">静止平均值</string>
+
+    <string name="fuzhi_chenggong">复制成功</string>
+    <string name="yanshi_shijian_buneng_weikong">延时时间不能为空</string>
+    <string name="dizao_shijian_buneng_weikong">底噪时间不能为空</string>
+    <string name="yanshi_jiance">延时检测</string>
+    <string name="dizao_jiance">底噪检测</string>
+    <string name="guang_min">光敏</string>
+    <string name="dizao_shijian">底噪时间</string>
+    <string name="zhu_yi">注意:</string>
+    <string name="qi_dong">启动</string>
+    <string name="fu_zhi">复制</string>
+    <string name="hongse_wei_yundong_mubiao">红色为运动目标值</string>
+    <string name="lanse_wei_jingzhi_mubiao">蓝色为静止目标值</string>
+    <string name="bian_ji">编辑</string>
+
+    <string name="chuankou_tongxun_xieyi">HLK-LD2410B 串口通讯协议V1.06</string>
+    <string name="shoushi_shibie_shuomingshu">HLK-LD2411 手势识别说明书V1.01</string>
+
+
+    <!--    2023-07-25-->
+    <string name="hint_2450">2450模块目前只支持OTA功能，暂未开放参数调节</string>
+    <string name="latest_version">当前版本已是最新,无需升级</string>
+    <string name="upgrade_failure">升级失败</string>
+    <string name="updating">升级中...</string>
+    <string name="ready_upgrade">准备升级</string>
+    <string name="bluetooch_disconnect">蓝牙已断开</string>
+    <string name="delay_one_second_start_searching">延时一秒，开始搜索</string>
+    <string name="can_be_upgraded">模块可以升级</string>
+    <string name="the_module_is_not_being_upgraded">模块未处于升级状态</string>
+    <string name="connection_status">连接状态</string>
+    <string name="start_connection">开始连接</string>
+    <string name="connecting">正在连接</string>
+    <string name="disconnect">断开连接</string>
+    <string name="disconnecting">正在断开</string>
+
+    <!--    2023-08-08-->
+    <string name="template_name_not_null">模板名称不能为空</string>
+
+    <!--    2023-08-24-->
+    <string name="feedback">意见反馈</string>
+    <string name="submit">提 交</string>
+    <string name="your_suggestion">请输入您的意见反馈</string>
+    <string name="enter_suggestion">在此输入您的意见</string>
+    <string name="enter_email">在此输入您的邮箱</string>
+    <string name="check_input">请检查输入内容</string>
+    <string name="other_question">其他问题</string>
+    <string name="submit_successfully">意见反馈成功！</string>
+    <string name="submit_failure">提交失败</string>
+    <string name="xinghao_xuanzhe">型号选择</string>
+    <string name="zaici_shuru_gujianbanben">在此输入固件版本</string>
+
+    <!-- 2023/10/10 -->
+    <!-- SetParameter2450Activity -->
+    <string name="not_defined_area_1">请先定义矩形区域1</string>
+    <string name="not_defined_area_2">请先定义矩形区域2</string>
+    <string name="not_defined_area_3">请先定义矩形区域3</string>
+    <string name="guanbi_jiance">关闭检测</string>
+    <string name="quyu_jiance">区域检测</string>
+    <string name="quyu_guolv">区域过滤</string>
+    <string name="area_1">区域1</string>
+    <string name="area_2">区域2</string>
+    <string name="area_3">区域3</string>
+    <string name="area_detection_mode">区域检测模式</string>
+    <string name="width">w:</string>
+    <string name="height">h:</string>
+
+    <!-- Control2450Activity -->
+    <string name="target_1">目标1</string>
+    <string name="target_2">目标2</string>
+    <string name="target_3">目标3</string>
+    <string name="distance">距离</string>
+    <string name="angle">角度</string>
+    <string name="speed">速度</string>
+    <string name="baud">波特率</string>
+    <string name="common_mode">普通</string>
+    <string name="area_mode">区域</string>
+    <string name="version_number">版本号</string>
+    <string name="perform_click_to_OTA">(点击进行OTA升级)</string>
+    <string name="target_track_mode">多人</string>
+    <string name="restart">重启模块</string>
+    <string name="reset">恢复出厂</string>
+
+    <string name="get_text_info_error">文档获取失败</string>
+
+    <string name="enter_less_than_100">请输入不大于100的数字</string>
+
+
+
+    <!--20240402-->
+    <string name="morenmimatishi">默认密码:HiLink</string>
+
+    <string name="jiancejingdu">检测精度</string>
+    <string name="jiancejingdusmsg">(值越小，检测范围越近，精度越高)</string>
+    <string name="jiancejingdusmsg2">最大检测范围：</string>
+    <string name="yundongnengliang">运动能量门限设置</string>
+    <string name="jingzhinengliang">静止能量门限设置</string>
+
+    <string name="setting">设置</string>
+    <string name="qiehuan">切换</string>
+
+    <!--20240425-->
+    <string name="yundongnengliangmenxian">运动能量门限</string>
+    <string name="jingzhinengliangmenxian">静止能量门限</string>
+
+    <!--20240428-->
+    <string name="tance_juli_buneng_wei0">探测距离间距不能为0</string>
+    <string name="jiance_zuijin_julimen">检测最近距离门</string>
+    <string name="jiance_zuiyuan_julimen">检测最远距离门</string>
+    <string name="shuchu_dianping">输出电平</string>
+    <string name="wuren_chixu_shijian_shezhi">无人持续时间设置</string>
+
+    <!--20240429-->
+    <string name="leida_canshu">雷达参数</string>
+    <string name="dangqian_canshu">当前参数</string>
+    <string name="nengliang_yuizhi">能量阈值</string>
+    <string name="rizhijilu">历史日志记录</string>
+    <string name="yuizhiqingchu">清除日志</string>
+
+    <!--20240430-->
+    <string name="shifou_dizao_jiance">是否进入底噪检测？</string>
+    <string name="kaiqi_dizao_jiance_tishi">底噪检测开启成功，模块会在10S后自动进入检测，请保证检测环境没有运动目标，以免影响检测结果！</string>
+    <string name="dizao_jiance_daojishi1">底噪检测将于</string>
+    <string name="dizao_jiance_daojishi2">秒后开始，请远离检测范围直至检测完成</string>
+    <string name="dizao_jiance_daojishi3">底噪检测中</string>
+    <string name="dizao_jiance_wancheng">底噪检测完成</string>
+    <string name="dizao_jiance_shibai">底噪检测失败</string>
+    <string name="dizao_chaoshi_shibai">底噪超时失败</string>
+
+    <string name="mubiaozhuangtai">目标状态：</string>
+    <string name="mubiaojuli">目标距离：：</string>
+    <string name="yundongmubiao">运动目标</string>
+    <string name="wumubiao">无目标</string>
+    <string name="jinzhimubiao">静止目标</string>
+    <string name="yundong">运动</string>
+    <string name="qita">其他</string>
+    <string name="guacemoshi">挂测模式</string>
+    <string name="guacekjilu">挂测记录</string>
+
+    <string name="get_setting_area">获取设置区域</string>
+
+
+
+
+    <string name="gujianshengji">固件升级</string>
+    <string name="gujianshengjizhong">固件升级中</string>
+    <string name="gujianshengjizhongtips">固件升级中,为避免升级失败，请勿将APP退出前台</string>
+    <string name="shengjirizhi">升级日志</string>
+    <string name="tishi">提示：</string>
+    <string name="shengjizhongtishii">升级将耗费一些时间，升级过程中请耐心等待。</string>
+    <string name="shengjichengongtishi">固件版本升级成功，点击下方按钮体验吧！</string>
+    <string name="lijitiyan">立即体验</string>
+    <string name="shengjishibai">升级失败！</string>
+    <string name="upgrade_complete">升级完成</string>
+    <string name="shengjizhong">升级中...</string>
+    <string name="quxiaoshengji">取消升级</string>
+    <string name="chongxinshengji">重新升级</string>
+
+    <string name="shengji_weiwancheng">升级未完成，请继续升级</string>
+
+    <!-- CaptureActivity -->
+    <string name="saomiao_erweima">扫描二维码</string>
+    <string name="shibie_kuang">请将设备二维码放置在识别框中</string>
+    <string name="xiangce">相册</string>
+    <string name="shoudian">手电</string>
+    <string name="zhengzai_saomiao">正在扫描...</string>
+    <string name="shibie_shibai">识别失败</string>
+    <string name="wuxiao_erweima">请扫描有效的设备二维码</string>
+    <string name="quanxian">请前往应用设置打开相关权限</string>
+
+    <string name="saoyisao">扫一扫</string>
+    <string name="fenxiang_shebei">分享设备</string>
+    <string name="xuanze_shebei">选择设备</string>
+    <string name="weixuanzhong_shebei">未选中设备</string>
+
+    <string name="dizaozuidacankao">底噪最大值：</string>
+    <string name="dizaopingjucankao">底噪平均值：</string>
+
+    <string name="shifou_jinxin_gujian_shengji">是否进行固件升级</string>
+    <string name="zuiduo_xuanze_10ge_shebei">最多只能选择10个设备</string>
+
+    <string name="log_page">Log 页面</string>
+
+
+</resources>

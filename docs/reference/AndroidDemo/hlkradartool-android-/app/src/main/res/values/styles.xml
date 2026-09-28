@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="title_style">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">45dp</item>
+    </style>
+
+    <style name="title_text_style">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_centerInParent">true</item>
+        <item name="android:textColor">@color/black</item>
+        <item name="android:textSize">20sp</item>
+    </style>
+
+    <style name="dialog_style" parent="Theme.MaterialComponents.Light.Dialog">
+        <item name="colorAccent">@color/purple_500</item>
+        <item name="android:colorAccent" tools:ignore="NewApi">@color/purple_500</item>
+        <item name="android:windowFrame">@null</item>
+        <!-- 是否浮现在activity之上 -->
+        <item name="android:windowIsFloating">true</item>
+        <!-- 是否半透明 -->
+        <item name="android:windowIsTranslucent">true</item>
+        <!-- 是否没有标题 -->
+        <item name="android:windowNoTitle">true</item>
+        <!-- 背景颜色及透明程度 -->
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <!-- 是否背景模糊 -->
+        <item name="android:backgroundDimEnabled">true</item>
+        <!-- 设置背景模糊的透明度-->
+        <item name="android:backgroundDimAmount">0.4</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+
+    <declare-styleable name="VerticalSeekBar">
+        <!--seekbar最大值-->
+        <attr name="max" format="integer"/>
+        <!--当前进度-->
+        <attr name="progress" format="integer"/>
+        <!--图片大小-->
+        <attr name="thumbSize" format="dimension"/>
+        <!--方向从上到下  或下到上-->
+        <attr name="orientation" format="boolean"/>
+        <attr name="barbg" format="color"/>
+        <attr name="progressbg" format="color"></attr>
+
+    </declare-styleable>
+
+    <!-- 设备列表页面设备的长按弹窗样式 -->
+    <style name="DeviceDialog" parent="@android:style/Theme.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.5</item>
+    </style>
+
+</resources>

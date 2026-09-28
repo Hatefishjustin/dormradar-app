@@ -1,0 +1,23 @@
+// 此文档作查找解释用
+
+// ControlBLEActivity 有曲线图的页面
+
+// SetParameterActivity 有模板的参数设置页面
+
+// VersionListActivity 版本升级页面
+
+// BLEListActivity 蓝牙设备选择页面
+
+// ServicePolicyInfoActivity 隐私协议
+
+// HelperInfoActivity 使用说明
+
+// SetDataListAdapter  有模板的参数设置页面的能量值列表适配器
+
+DemoApplication.getInstance().nowSelectDevice  这句话表示现在选择的设备的相关信息与参数
+
+2024.4.24 : 2410和2412大体相同，相同部分包括协议，页面逻辑之类的都保持一致，不同的点在于有新的
+
+
+
+

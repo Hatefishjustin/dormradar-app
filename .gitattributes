@@ -1,0 +1,7 @@
+# 跨平台一致性：wrapper 脚本换行符固定，jar 按二进制处理
+* text=auto
+gradlew text eol=lf
+gradlew.bat text eol=crlf
+*.jar binary
+*.png binary
+*.pdf binary

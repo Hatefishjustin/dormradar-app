@@ -1,0 +1,5 @@
+rootProject.name = "HLKRadarTool"
+include ':app'
+include ':library'
+//include ':jltest:jlbtota'
+

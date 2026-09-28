@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 通知小图标：雷达波束扇形（与 App 内半圆雷达视图呼应），单色白（系统自动染色） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,21 L6,10.6 A12,12 0 0 1 18,10.6 Z" />
+</vector>
