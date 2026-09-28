@@ -227,7 +227,7 @@ fun SettingsScreen(
                 Text("关于", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "宿管雷达 DormRadar v0.5.4\n面向 HLK-LD2410C 毫米波雷达的监控/调参工具。\n新增：灵敏度页「无人基线定参」（一键把各门阈值压到刚好高于环境浮动）；距离诊断改为两步引导采样并自动算出误报率/检出率。",
+                    "宿管雷达 DormRadar v0.5.5\n面向 HLK-LD2410C 毫米波雷达的监控/调参工具。\n新增「近场饱和」判定：读数被钉在几十厘米且无人也报有人时，直接告诉你是安装问题、调参无用，并给出改安装的步骤。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

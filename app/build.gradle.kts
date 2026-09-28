@@ -14,8 +14,8 @@ android {
         applicationId = "com.dormradar.app"
         minSdk = 26          // 覆盖近 8 年设备，BLE API 稳定
         targetSdk = 35
-        versionCode = 9
-        versionName = "0.5.4"
+        versionCode = 10
+        versionName = "0.5.5"
     }
 
     buildTypes {

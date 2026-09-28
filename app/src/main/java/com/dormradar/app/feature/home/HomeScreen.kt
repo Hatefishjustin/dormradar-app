@@ -258,6 +258,7 @@ private fun DevicePanel(viewModel: HomeViewModel, connState: ConnState, onNaviga
     val deviceInfo by viewModel.deviceInfo.collectAsStateWithLifecycle()
     val energyHistory by viewModel.energyHistory.collectAsStateWithLifecycle()
     val suspectedStatic by viewModel.suspectedStatic.collectAsStateWithLifecycle()
+    val suspectedNearField by viewModel.suspectedNearField.collectAsStateWithLifecycle()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -303,15 +304,26 @@ private fun DevicePanel(viewModel: HomeViewModel, connState: ConnState, onNaviga
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            "⚠ 疑似门板静态反射",
+                            if (suspectedNearField) "⚠ 疑似近场饱和（先改安装，不是调参）"
+                            else "⚠ 疑似门板静态反射",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            "已连续 1 分钟以上显示\"有人\"且距离几乎不变——大概率是门板/墙体的静态反射被当成了目标" +
-                                "（灵敏度阈值低于环境底噪的典型症状）。建议：\n" +
-                                "① 到「设置 → 调试工具 → 部署向导」重新采样定阈值（最科学）；\n" +
-                                "② 或到「灵敏度调节」把静止阈值调高（数值越大越不灵敏）。",
+                            if (suspectedNearField) {
+                                "已连续 1 分钟以上显示\"有人\"，且距离被钉在很小的值（≤50cm、几乎不变）。" +
+                                    "这说明紧贴天线的介质（门板/玻璃/金属）的反射，强过了门外人体的回波。\n" +
+                                    "这种局面调灵敏度没用：阈值抬高会把人也一起屏蔽，压低则永远误报。\n" +
+                                    "建议按顺序试：\n" +
+                                    "① 让探测面与目标之间不要夹介质——把感应面直接朝外（实测最有效）；\n" +
+                                    "② 挡板换成更薄、不含金属层的；\n" +
+                                    "③ 改完到「设置 → 调试工具 → 距离诊断」走一次两步引导，看误报率是否降下来。"
+                            } else {
+                                "已连续 1 分钟以上显示\"有人\"且距离几乎不变——大概率是门板/墙体的静态反射被当成了目标" +
+                                    "（灵敏度阈值低于环境底噪的典型症状）。建议：\n" +
+                                    "① 到「设置 → 调试工具 → 部署向导」重新采样定阈值（最科学）；\n" +
+                                    "② 或到「灵敏度调节 → 无人基线定参」一键把阈值压到刚好高于环境浮动。"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

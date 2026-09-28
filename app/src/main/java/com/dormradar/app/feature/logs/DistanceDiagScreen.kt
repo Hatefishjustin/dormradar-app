@@ -251,6 +251,7 @@ private fun SummaryCard(summary: DistanceDiagAnalysis.Summary) {
         DistanceDiagAnalysis.VerdictKind.DISPLAY_DISTORTION,
         DistanceDiagAnalysis.VerdictKind.FALSE_POSITIVE,
         DistanceDiagAnalysis.VerdictKind.MISSED_DETECTION,
+        DistanceDiagAnalysis.VerdictKind.NEAR_FIELD_SATURATION,
         -> MaterialTheme.colorScheme.errorContainer
 
         DistanceDiagAnalysis.VerdictKind.STATIC_ECHO -> MaterialTheme.colorScheme.tertiaryContainer

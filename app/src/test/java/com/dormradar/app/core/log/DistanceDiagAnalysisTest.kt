@@ -23,6 +23,8 @@ class DistanceDiagAnalysisTest {
         phase: Int = DiagPhase.NONE,
         display: Int? = null,
         inHold: Boolean = false,
+        moveGates: IntArray? = null,
+        staticGates: IntArray? = null,
     ) = DistanceDiagSample(
         wallClockMs = 1_700_000_000_000L + relMs,
         relMs = relMs,
@@ -36,8 +38,8 @@ class DistanceDiagAnalysisTest {
         detectDistanceCm = detect,
         displayDistanceCm = display ?: if (hasTarget) detect else -1,
         inHold = inHold,
-        moveGateEnergies = null,
-        staticGateEnergies = null,
+        moveGateEnergies = moveGates,
+        staticGateEnergies = staticGates,
     )
 
     // ================= 显示层 =================
@@ -160,11 +162,12 @@ class DistanceDiagAnalysisTest {
 
     @Test
     fun `引导模式按阶段切分_不按设备自报状态`() {
-        // 无人阶段里设备全部误判"有人"；若按 hasTarget 切分，无人段会变成空
+        // 无人阶段里设备全部误判"有人"；若按 hasTarget 切分，无人段会变成空。
+        // 读数取 300cm（非近场），以隔离"按阶段切分"这一点，不与近场饱和判据混淆。
         val samples = List(10) {
-            s(it * 1000L, 40, hasTarget = true, phase = DiagPhase.NO_PERSON)
+            s(it * 1000L, 300, hasTarget = true, phase = DiagPhase.NO_PERSON)
         } + List(10) {
-            s(10_000L + it * 1000L, 300, hasTarget = true, phase = DiagPhase.PERSON)
+            s(10_000L + it * 1000L, 320, hasTarget = true, phase = DiagPhase.PERSON)
         }
         val sum = DistanceDiagAnalysis.summarize(samples)!!
         assertTrue(sum.guided)
@@ -222,6 +225,99 @@ class DistanceDiagAnalysisTest {
         assertEquals(1.0, sum.detectionRate!!, 0.0001)
         assertEquals(DistanceDiagAnalysis.VerdictKind.TARGET_MOVING, sum.kind)
         assertEquals(90, sum.person!!.spread)
+    }
+
+    // ================= 近场饱和（用户 2026-09-28 实测：隔门板恒报 30cm）=================
+
+    @Test
+    fun `无人阶段读数被钉在最小值_判为近场饱和并指向改安装`() {
+        // 用户实测场景：隔着门板，无人时也一直报 30cm 有人
+        val noPerson = List(10) {
+            s(it * 1000L, 30, hasTarget = true, phase = DiagPhase.NO_PERSON)
+        }
+        val person = List(10) {
+            s(10_000L + it * 1000L, 30 + it % 3, hasTarget = true, phase = DiagPhase.PERSON)
+        }
+        val sum = DistanceDiagAnalysis.summarize(noPerson + person)!!
+        assertEquals(DistanceDiagAnalysis.VerdictKind.NEAR_FIELD_SATURATION, sum.kind)
+        assertTrue(sum.verdict.contains("近场饱和"))
+        assertTrue(sum.verdict.contains("调灵敏度没用"))
+        assertTrue(sum.verdict.contains("改安装") || sum.verdict.contains("不要夹介质"))
+    }
+
+    @Test
+    fun `近场饱和优先于误报主导`() {
+        // 两者都表现为"无人也报有人"，但近场饱和的处置是改安装、不是压阈值——必须优先判近场
+        val noPerson = List(10) {
+            s(it * 1000L, 30, hasTarget = true, phase = DiagPhase.NO_PERSON)
+        }
+        val person = List(10) {
+            s(10_000L + it * 1000L, 32, hasTarget = true, phase = DiagPhase.PERSON)
+        }
+        val sum = DistanceDiagAnalysis.summarize(noPerson + person)!!
+        assertEquals(1.0, sum.falsePositiveRate!!, 0.0001)
+        assertEquals(DistanceDiagAnalysis.VerdictKind.NEAR_FIELD_SATURATION, sum.kind)
+    }
+
+    @Test
+    fun `读数在正常距离上的误报仍判误报主导`() {
+        // 无人阶段读数在 3 米附近、八成误报 → 属于阈值偏低，可压阈值矫治，不该判成近场
+        val noPerson = List(10) {
+            s(it * 1000L, 300, hasTarget = it < 8, phase = DiagPhase.NO_PERSON)
+        }
+        val person = List(10) {
+            s(10_000L + it * 1000L, 300, hasTarget = true, phase = DiagPhase.PERSON)
+        }
+        val sum = DistanceDiagAnalysis.summarize(noPerson + person)!!
+        assertEquals(DistanceDiagAnalysis.VerdictKind.FALSE_POSITIVE, sum.kind)
+        assertTrue(sum.verdict.contains("无人基线定参"))
+    }
+
+    @Test
+    fun `无引导阶段标记时不会误判成近场饱和`() {
+        // 旧格式数据：按 hasTarget 切分，noPerson 是"设备自报无人"的行，targetRate 恒为 0
+        val samples = listOf(
+            s(0, 30, hasTarget = false), s(1000, 30, hasTarget = false),
+        )
+        val sum = DistanceDiagAnalysis.summarize(samples)!!
+        assertFalse(sum.guided)
+        assertEquals(DistanceDiagAnalysis.VerdictKind.STATIC_ECHO, sum.kind)
+    }
+
+    // ================= 门能量分布 =================
+
+    @Test
+    fun `门能量分布平均值并指出峰值门`() {
+        val samples = listOf(
+            s(0, 30, moveGates = intArrayOf(60, 20, 5), staticGates = intArrayOf(40, 10, 0)),
+            s(1000, 30, moveGates = intArrayOf(80, 30, 10), staticGates = intArrayOf(60, 20, 0)),
+        )
+        val sum = DistanceDiagAnalysis.summarize(samples)!!
+        // 每门取 max(运动, 静止) 后求平均：门0 (60+80)/2=70、门1 (20+30)/2=25、门2 (5+10)/2=7
+        assertEquals(listOf(70, 25, 7), sum.gateEnergyMeans)
+        assertEquals(0, sum.dominantGate)
+        assertTrue(sum.findings.any { it.contains("门能量分布") && it.contains("峰值在门 0") })
+    }
+
+    @Test
+    fun `无工程帧时门能量分布为空`() {
+        val sum = DistanceDiagAnalysis.summarize(listOf(s(0, 300)))!!
+        assertNull(sum.gateEnergyMeans)
+        assertNull(sum.dominantGate)
+    }
+
+    @Test
+    fun `近场饱和的结论里带上峰值门作为证据`() {
+        val noPerson = List(4) {
+            s(it * 1000L, 30, phase = DiagPhase.NO_PERSON, moveGates = intArrayOf(70, 8, 2), staticGates = intArrayOf(50, 5, 0))
+        }
+        val person = List(4) {
+            s(4_000L + it * 1000L, 32, phase = DiagPhase.PERSON, moveGates = intArrayOf(72, 9, 2), staticGates = intArrayOf(52, 6, 0))
+        }
+        val sum = DistanceDiagAnalysis.summarize(noPerson + person)!!
+        assertEquals(DistanceDiagAnalysis.VerdictKind.NEAR_FIELD_SATURATION, sum.kind)
+        assertEquals(0, sum.dominantGate)
+        assertTrue(sum.verdict.contains("能量也确实堆在门 0"))
     }
 
     // ================= 帧率 =================

@@ -27,6 +27,13 @@ object DistanceDiagAnalysis {
     /** 检出率低于该值即判为"漏报主导" */
     private const val DETECTION_MIN = 0.5
 
+    /**
+     * 近场饱和判据：无人阶段读数上界不超过该值（cm）且大半仍被判"有人"。
+     * 语义 = 紧贴天线的介质（门板/玻璃/金属）反射压过了外部人体回波，
+     * 距离被钉在最小值附近。**这种局面任何阈值都救不回来**，只能改安装。
+     */
+    private const val NEAR_FIELD_CM = 50
+
     /** 一段样本（无人阶段或有人阶段）的距离统计 */
     data class Segment(
         val rows: Int,
@@ -67,6 +74,10 @@ object DistanceDiagAnalysis {
         val uiDiffRows: Int,
         /** 其中处于"目标丢失保持"窗口的行数 */
         val uiDiffHoldRows: Int,
+        /** 各门平均能量（仅工程帧；无工程帧为 null）——用于看能量堆在哪一门 */
+        val gateEnergyMeans: List<Int>?,
+        /** 平均能量最高的门号（近场饱和时通常是最靠前的门） */
+        val dominantGate: Int?,
         /** 结论分类（UI 据此配色，不必解析中文） */
         val kind: VerdictKind,
         /** 一句话结论 */
@@ -92,7 +103,13 @@ object DistanceDiagAnalysis {
         /** 目标真实在移动（有人阶段极差达到一个距离门）——正常现象，不该平滑掉 */
         TARGET_MOVING,
 
-        /** 误报主导：门口无人却大量判为有人 */
+        /**
+         * 近场饱和：读数被钉在最小距离附近、无人时也报"有人"。
+         * **阈值救不回来**，必须改安装（探测面与目标之间不要有介质）。
+         */
+        NEAR_FIELD_SATURATION,
+
+        /** 误报主导：门口无人却大量判为有人（但读数分布在正常距离上，可用阈值矫治） */
         FALSE_POSITIVE,
 
         /** 漏报主导：有人走过却大量判为无人 */
@@ -129,6 +146,12 @@ object DistanceDiagAnalysis {
         }
         val falsePositiveRate = if (guided) noPerson?.targetRate else null
         val detectionRate = if (guided) person?.targetRate else null
+
+        // 各门平均能量：近场饱和时能量会堆在最靠前的门上，是"改安装而非调参"的直接证据
+        val gateEnergyMeans = gateEnergyMeans(samples)
+        val dominantGate = gateEnergyMeans?.let { m ->
+            if (m.isEmpty() || m.all { it == 0 }) null else m.indices.maxByOrNull { m[it] }
+        }
 
         // 只比较"显示管线确实呈现了距离"的行：无人时显示管线输出 -1（界面显示 "--"），
         // 那不是"数值不一致"，若计入会让每段无人样本都误判成显示层变形（2026-09-28 修正）。
@@ -180,6 +203,11 @@ object DistanceDiagAnalysis {
         if (person == null) {
             findings += "⚠ 本次记录没有「有人」阶段的数据——缺少对照无法评估灵敏度"
         }
+        gateEnergyMeans?.let { m ->
+            findings += "门能量分布（各门平均，取运动/静止较大者）：" +
+                m.mapIndexed { g, v -> "门$g $v" }.joinToString(" / ") +
+                (dominantGate?.let { "；峰值在门 $it" } ?: "")
+        }
 
         val kind = classify(guided, falsePositiveRate, detectionRate, noPerson, person, uiDiff.size, uiDiffHold, gate)
         return Summary(
@@ -197,8 +225,10 @@ object DistanceDiagAnalysis {
             detectionRate = detectionRate,
             uiDiffRows = uiDiff.size,
             uiDiffHoldRows = uiDiffHold,
+            gateEnergyMeans = gateEnergyMeans,
+            dominantGate = dominantGate,
             kind = kind,
-            verdict = verdictText(kind, noPerson, person, falsePositiveRate, detectionRate, gate),
+            verdict = verdictText(kind, noPerson, person, falsePositiveRate, detectionRate, gate, dominantGate),
             findings = findings,
         )
     }
@@ -216,6 +246,10 @@ object DistanceDiagAnalysis {
         gate: Int,
     ): VerdictKind = when {
         uiDiffRows > uiDiffHoldRows -> VerdictKind.DISPLAY_DISTORTION
+
+        // 近场饱和优先于"误报主导"：两者都表现为"无人也报有人"，但处置完全不同——
+        // 近场是安装几何问题、阈值救不回来；只有读数分布在正常距离上的误报才轮到压阈值。
+        nearFieldSaturated(noPerson) -> VerdictKind.NEAR_FIELD_SATURATION
 
         // 引导模式优先回答"误报/漏报"这两个用户真正关心的问题
         guided && falsePositiveRate != null && falsePositiveRate >= FALSE_POSITIVE_ALERT ->
@@ -250,6 +284,7 @@ object DistanceDiagAnalysis {
         falsePositiveRate: Double?,
         detectionRate: Double?,
         gate: Int,
+        dominantGate: Int?,
     ): String = when (kind) {
         VerdictKind.INSUFFICIENT ->
             "样本不足，无法判定。" +
@@ -258,6 +293,15 @@ object DistanceDiagAnalysis {
                 } else {
                     "请走引导流程重新采一次"
                 })
+
+        VerdictKind.NEAR_FIELD_SATURATION ->
+            "判定：近场饱和。读数被钉在最小距离附近" +
+                (noPerson?.let { "（无人阶段 ${it.detectMin}~${it.detectMax} cm、几乎不变）" } ?: "") +
+                "，而且无人时也判「有人」。这意味着**紧贴天线的介质（门板/玻璃/金属）反射强过了门外的人体回波**" +
+                (dominantGate?.let { "——能量也确实堆在门 $it" } ?: "") +
+                "。处置：这是安装几何问题，**调灵敏度没用**（把阈值抬高只会连人一起屏蔽，压低则永远误报）。" +
+                "请让探测面与目标之间不要夹介质（例如把感应面直接朝外/换到门外侧），" +
+                "或用更薄、不含金属层的挡板；改完再走一次两步引导即可看到变化"
 
         VerdictKind.STABLE ->
             "判定：读数稳定，未发现异常抖动" +
@@ -299,6 +343,35 @@ object DistanceDiagAnalysis {
     private fun pct(rate: Double?): String = if (rate == null) "?" else "%.0f%%".format(rate * 100)
 
     // ---- 统计工具 ----
+
+    /**
+     * 近场饱和：无人阶段的读数上界都很小，且大半仍被判"有人"。
+     * @param noPerson 无人阶段统计（引导模式才有；未引导时为"设备自报无人"的行，targetRate 恒为 0，故不会误判）
+     */
+    private fun nearFieldSaturated(noPerson: Segment?): Boolean =
+        noPerson != null && noPerson.detectMax <= NEAR_FIELD_CM && noPerson.targetRate >= 0.5
+
+    /**
+     * 各门平均能量（只统计带工程帧数据的样本，取运动/静止较大者）。
+     * 无工程帧（如只开了基础上报）时返回 null——那时没有门级信息可用。
+     */
+    private fun gateEnergyMeans(samples: List<DistanceDiagSample>): List<Int>? {
+        val withGates = samples.filter { it.moveGateEnergies != null && it.staticGateEnergies != null }
+        if (withGates.isEmpty()) return null
+        val gateCount = withGates.maxOf { s ->
+            maxOf(s.moveGateEnergies!!.size, s.staticGateEnergies!!.size)
+        }
+        return (0 until gateCount).map { g ->
+            var sum = 0
+            withGates.forEach { s ->
+                sum += maxOf(
+                    s.moveGateEnergies!!.getOrElse(g) { 0 },
+                    s.staticGateEnergies!!.getOrElse(g) { 0 },
+                )
+            }
+            sum / withGates.size
+        }
+    }
 
     private fun fpsOf(rows: Int, durationMs: Long): Double =
         if (durationMs <= 0L) 0.0 else rows * 1000.0 / durationMs

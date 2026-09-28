@@ -64,6 +64,9 @@ class HomeViewModel @Inject constructor(
         private const val STATIC_SUSPECT_MS = 60_000L
         /** 疑似静态反射：检测距离波动小于该值（cm）视为"不变" */
         private const val STATIC_DIST_SPREAD_CM = 15
+
+        /** 近场饱和判据：读数上界不超过该值（cm）——落在最近的距离门里 */
+        private const val NEAR_FIELD_CM = 50
     }
 
     val connState: StateFlow<ConnState> = connection.connState
@@ -94,12 +97,23 @@ class HomeViewModel @Inject constructor(
     private val _suspectedStatic = MutableStateFlow(false)
     val suspectedStatic: StateFlow<Boolean> = _suspectedStatic.asStateFlow()
 
+    /**
+     * 疑似静态反射是否属于「近场饱和」——读数被钉在很小的值（≤ [NEAR_FIELD_CM]）。
+     * 这两种情况的处置**完全不同**（用户实测反馈 2026-09-28）：
+     * - 近场饱和（读数 ≤ 最小距离附近且无人也报有人）：探测面与目标之间夹了介质（门板/玻璃/金属），
+     *   反射能量强过人体回波 → **调阈值救不回来**（阈值抬高只会连人一起屏蔽），必须改安装；
+     * - 普通误报（读数分布正常）：阈值低于底噪 → 抬阈值/跑部署向导有效。
+     */
+    private val _suspectedNearField = MutableStateFlow(false)
+    val suspectedNearField: StateFlow<Boolean> = _suspectedNearField.asStateFlow()
+
     private var presenceStartAt = 0L
     private var presenceDistMin = Int.MAX_VALUE
     private var presenceDistMax = 0
 
     fun dismissStaticHint() {
         _suspectedStatic.value = false
+        _suspectedNearField.value = false
     }
 
     private val _energyHistory = MutableStateFlow<List<EnergySample>>(emptyList())
@@ -131,10 +145,13 @@ class HomeViewModel @Inject constructor(
                         presenceDistMax - presenceDistMin < STATIC_DIST_SPREAD_CM
                     ) {
                         _suspectedStatic.value = true
+                        // 读数被钉在最小距离附近 → 近场饱和，处置是改安装而不是调参
+                        _suspectedNearField.value = presenceDistMax <= NEAR_FIELD_CM
                     }
                 } else {
                     presenceStartAt = 0L
                     _suspectedStatic.value = false
+                    _suspectedNearField.value = false
                 }
                 // 显示防抖与平滑
                 val prevDisplay = _displayState.value
@@ -166,6 +183,7 @@ class HomeViewModel @Inject constructor(
                 if (state !is ConnState.Ready) {
                     presenceStartAt = 0L
                     _suspectedStatic.value = false
+                    _suspectedNearField.value = false
                 }
             }
         }
