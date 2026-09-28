@@ -148,7 +148,7 @@ fun SettingsScreen(
                 DetailEntry("部署向导", "位置建议 → 采样 → 自动建议参数（换位置后重跑）", connected) { onNavigate("deploy") }
                 DetailEntry("配置模板", "保存 / 应用 / 差异对比（回滚手段）", true) { onNavigate("templates") }
                 DetailEntry("连接质量", "RSSI 曲线 / 帧统计 / 重连历史", connected) { onNavigate("quality") }
-                DetailEntry("距离诊断", "逐帧记录原始距离 vs UI 显示（排查抖动）", connected) { onNavigate("diag") }
+                DetailEntry("距离诊断", "自动判定「距离跳动」根因 + 逐帧 CSV 导出", connected) { onNavigate("diag") }
                 DetailEntry("日志与导出", "运行日志 / 原始帧记录 / zip 分享", true) { onNavigate("logs") }
                 if (!connected) {
                     Text(
@@ -227,7 +227,7 @@ fun SettingsScreen(
                 Text("关于", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "宿管雷达 DormRadar v0.5.2\n面向 HLK-LD2410C 毫米波雷达的监控/调参工具。\n新增距离诊断记录器（逐帧取证\"距离跳动\"根因）与调参指南。",
+                    "宿管雷达 DormRadar v0.5.3\n面向 HLK-LD2410C 毫米波雷达的监控/调参工具。\n距离诊断页新增自动判定：站设备旁记 1~2 分钟即可看到「距离跳动」的根因结论。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

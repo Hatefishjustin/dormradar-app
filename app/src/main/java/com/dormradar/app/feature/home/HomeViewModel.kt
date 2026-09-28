@@ -137,20 +137,27 @@ class HomeViewModel @Inject constructor(
                     _suspectedStatic.value = false
                 }
                 // 显示防抖与平滑
+                val prevDisplay = _displayState.value
+                // 「目标丢失保持」窗口：设备已报无人，但 2 秒内继续显示上一帧（避免闪"无人"）。
+                // 该窗口内的显示距离是**有意保留的旧值**，诊断记录器需要据此打标记，
+                // 否则会被误读成"显示层在编造距离"（2026-09-28 审计）。
+                val holding = s != null && !s.hasTarget && prevDisplay != null &&
+                    prevDisplay.hasTarget && s.updatedAt - prevDisplay.updatedAt < TARGET_HOLD_MS
                 val display = when {
                     s == null -> null
-                    s.hasTarget -> {
-                        val prev = _displayState.value
-                        if (prev?.hasTarget == true) smoothDisplay(prev, s) else s
-                    }
-                    // 目标刚丢失：2 秒内继续显示上一帧（不闪"无人"）
-                    _displayState.value?.hasTarget == true && s.updatedAt - _displayState.value!!.updatedAt < TARGET_HOLD_MS ->
-                        _displayState.value
+                    s.hasTarget ->
+                        if (prevDisplay?.hasTarget == true) smoothDisplay(prevDisplay, s) else s
+
+                    holding -> prevDisplay
                     else -> s
                 }
                 _displayState.value = display
-                // 距离诊断记录器：回报 UI 实际显示值（无人记 -1）
-                diagRecorder.noteDisplay(display?.hasTarget == true, display?.detectDistanceCm ?: -1)
+                // 距离诊断记录器：回报显示管线实际输出值（含保持窗口标记）
+                diagRecorder.noteDisplay(
+                    hasTarget = display?.hasTarget == true,
+                    detectDistanceCm = display?.detectDistanceCm ?: -1,
+                    inHold = holding,
+                )
             }
         }
         // 断开连接即重置疑似反射检测
