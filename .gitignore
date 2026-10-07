@@ -27,3 +27,5 @@ __MACOSX/
 
 # Trae IDE 工作区缓存（计划文件等，不入库）
 .trae/
+notes.txt
+latest_check.json

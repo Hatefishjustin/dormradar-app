@@ -231,12 +231,8 @@ fun SettingsScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        // ---- App 更新（Gitee 源，用户需求 2026-10-07）----
+        // ---- App 更新（Gitee 源已写死 UpdateConfig，用户决策 2026-10-07：不让用户自己填）----
         val updateState by viewModel.updateState.collectAsStateWithLifecycle()
-        val gOwner by viewModel.giteeOwner.collectAsStateWithLifecycle()
-        val gRepo by viewModel.giteeRepo.collectAsStateWithLifecycle()
-        val gToken by viewModel.giteeToken.collectAsStateWithLifecycle()
-        val autoCheck by viewModel.autoUpdateCheck.collectAsStateWithLifecycle()
         val versionCode = remember {
             try {
                 context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode.toInt()
@@ -248,41 +244,11 @@ fun SettingsScreen(
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("App 更新", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                 Text(
-                    "更新源 = 你的 Gitee 仓库（Release 里上传命名如 dormradar-0.6.0-11.apk 的资产）。" +
-                        "私有仓库才需要填私人令牌；令牌只保存在本机，不会上传",
+                    "更新源：Gitee 私有仓库 hatefishjustin/dormradar-app（已内置）。" +
+                        "每次打开 App 会自动检查，发现新版本会弹窗询问；也可以在这里手动检查",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                OutlinedTextField(
-                    value = gOwner,
-                    onValueChange = viewModel::setGiteeOwner,
-                    singleLine = true,
-                    label = { Text("Gitee 用户名") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = gRepo,
-                    onValueChange = viewModel::setGiteeRepo,
-                    singleLine = true,
-                    label = { Text("仓库名") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = gToken,
-                    onValueChange = viewModel::setGiteeToken,
-                    singleLine = true,
-                    label = { Text("私人令牌（可选，仅私有仓库）") },
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Switch(checked = autoCheck, onCheckedChange = viewModel::setAutoUpdateCheck)
-                    Text(
-                        "启动时自动检查更新",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
-                }
                 Button(
                     onClick = { viewModel.checkUpdate(versionCode) },
                     enabled = !updateState.checking && !updateState.downloading,

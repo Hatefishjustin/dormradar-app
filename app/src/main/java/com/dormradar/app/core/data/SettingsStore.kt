@@ -39,12 +39,8 @@ class SettingsStore @Inject constructor(
         // ---- 阶段 4：调试工具（docs/06 阶段 4）----
         val frameLogEnabled = booleanPreferencesKey("frame_log_enabled")
 
-        // ---- 阶段 4 扩展：首页卡片自定义 + App 更新源（用户需求 2026-10-07）----
+        // ---- 阶段 4 扩展：首页卡片自定义（2026-10-07）；更新源已写死 UpdateConfig（不再走 DataStore）----
         val homeCardLayout = stringPreferencesKey("home_card_layout")
-        val giteeOwner = stringPreferencesKey("gitee_owner")
-        val giteeRepo = stringPreferencesKey("gitee_repo")
-        val giteeToken = stringPreferencesKey("gitee_token")
-        val autoUpdateCheck = booleanPreferencesKey("auto_update_check")
     }
 
     val bluetoothPassword: Flow<String> =
@@ -77,20 +73,6 @@ class SettingsStore @Inject constructor(
     val homeCardLayout: Flow<HomeCardLayout> =
         context.dataStore.data.map { HomeCardLayout.decode(it[Keys.homeCardLayout]) }
 
-    val giteeOwner: Flow<String> =
-        context.dataStore.data.map { it[Keys.giteeOwner] ?: "" }
-
-    val giteeRepo: Flow<String> =
-        context.dataStore.data.map { it[Keys.giteeRepo] ?: "" }
-
-    /** Gitee 私人令牌（仅私有仓库需要；只存本地 DataStore，严禁进源码/git/日志） */
-    val giteeToken: Flow<String> =
-        context.dataStore.data.map { it[Keys.giteeToken] ?: "" }
-
-    /** 启动时自动检查更新（默认关，手动检查始终可用） */
-    val autoUpdateCheck: Flow<Boolean> =
-        context.dataStore.data.map { it[Keys.autoUpdateCheck] ?: false }
-
     suspend fun setPassword(value: String) = set(Keys.bluetoothPassword, value)
     suspend fun setFakeDataEnabled(value: Boolean) = set(Keys.fakeDataEnabled, value)
     suspend fun setMonitorMode(value: MonitorMode) = set(Keys.monitorMode, value.name)
@@ -98,10 +80,6 @@ class SettingsStore @Inject constructor(
     suspend fun setKeepAliveGuideShown(value: Boolean) = set(Keys.keepAliveGuideShown, value)
     suspend fun setFrameLogEnabled(value: Boolean) = set(Keys.frameLogEnabled, value)
     suspend fun setHomeCardLayout(value: HomeCardLayout) = set(Keys.homeCardLayout, value.encode())
-    suspend fun setGiteeOwner(value: String) = set(Keys.giteeOwner, value.trim())
-    suspend fun setGiteeRepo(value: String) = set(Keys.giteeRepo, value.trim())
-    suspend fun setGiteeToken(value: String) = set(Keys.giteeToken, value.trim())
-    suspend fun setAutoUpdateCheck(value: Boolean) = set(Keys.autoUpdateCheck, value)
 
     suspend fun setLastDeviceMac(value: String?) {
         context.dataStore.edit { prefs ->

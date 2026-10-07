@@ -37,6 +37,7 @@ import com.dormradar.app.feature.logs.LogsScreen
 import com.dormradar.app.feature.logs.DistanceDiagScreen
 import com.dormradar.app.feature.quicksetup.QuickSetupScreen
 import com.dormradar.app.feature.settings.SettingsScreen
+import com.dormradar.app.feature.settings.UpdatePromptHost
 
 private data class Tab(
     val route: String,
@@ -93,6 +94,8 @@ fun AppRoot() {
             }
         },
     ) { padding ->
+        // 启动更新提示（每次冷启动检查一次，发现新版弹窗询问；用户决策 2026-10-07）
+        UpdatePromptHost()
         NavHost(
             navController = navController,
             startDestination = "home",

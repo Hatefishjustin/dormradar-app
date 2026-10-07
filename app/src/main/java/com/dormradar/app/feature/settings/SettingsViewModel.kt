@@ -11,6 +11,7 @@ import com.dormradar.app.core.log.LogExporter
 import com.dormradar.app.core.monitor.MonitorMode
 import com.dormradar.app.core.update.GiteeRelease
 import com.dormradar.app.core.update.UpdateChecker
+import com.dormradar.app.core.update.UpdateConfig
 import com.dormradar.app.core.update.UpdateDownloader
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -64,21 +65,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settings.setFakeDataEnabled(value) }
     }
 
-    // ---- App 自动更新（Gitee，用户需求 2026-10-07）----
-
-    val giteeOwner: StateFlow<String> =
-        settings.giteeOwner.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
-    val giteeRepo: StateFlow<String> =
-        settings.giteeRepo.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
-    val giteeToken: StateFlow<String> =
-        settings.giteeToken.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
-    val autoUpdateCheck: StateFlow<Boolean> =
-        settings.autoUpdateCheck.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
-    fun setGiteeOwner(value: String) = viewModelScope.launch { settings.setGiteeOwner(value) }
-    fun setGiteeRepo(value: String) = viewModelScope.launch { settings.setGiteeRepo(value) }
-    fun setGiteeToken(value: String) = viewModelScope.launch { settings.setGiteeToken(value) }
-    fun setAutoUpdateCheck(value: Boolean) = viewModelScope.launch { settings.setAutoUpdateCheck(value) }
+    // ---- App 自动更新（Gitee 源已写死在 UpdateConfig，用户决策 2026-10-07）----
 
     /** 检查更新状态机：Idle → Checking →（Ready[有新版+已下载] / UpToDate / Failed） */
     data class UpdateUiState(
@@ -88,19 +75,23 @@ class SettingsViewModel @Inject constructor(
         val release: GiteeRelease? = null,
         val downloadedApk: File? = null,
         val message: String? = null,
+        /** 启动弹窗的「下次再说」：本次会话不再弹（设置页手动检查不受影响） */
+        val silenced: Boolean = false,
     )
 
     private val _updateState = MutableStateFlow(UpdateUiState())
     val updateState: StateFlow<UpdateUiState> = _updateState.asStateFlow()
 
+    /** 启动弹窗「下次再说」 */
+    fun silenceUpdatePrompt() {
+        _updateState.value = _updateState.value.copy(silenced = true)
+    }
+
     fun checkUpdate(currentVersionCode: Int) {
         if (_updateState.value.checking || _updateState.value.downloading) return
         viewModelScope.launch {
             _updateState.value = UpdateUiState(checking = true)
-            val owner = giteeOwner.value
-            val repo = giteeRepo.value
-            val token = giteeToken.value.ifBlank { null }
-            when (val result = UpdateChecker.fetch(owner, repo, token, currentVersionCode)) {
+            when (val result = UpdateChecker.fetch(UpdateConfig.OWNER, UpdateConfig.REPO, UpdateConfig.TOKEN, currentVersionCode)) {
                 is UpdateChecker.CheckResult.NewRelease -> {
                     _updateState.value = UpdateUiState(release = result.release, message = null)
                 }
@@ -117,8 +108,7 @@ class SettingsViewModel @Inject constructor(
         if (_updateState.value.downloading) return
         viewModelScope.launch {
             _updateState.value = _updateState.value.copy(downloading = true, progress = 0, message = null)
-            val token = giteeToken.value.ifBlank { null }
-            val result = UpdateDownloader.download(appContext, release, token) { p ->
+            val result = UpdateDownloader.download(appContext, release, UpdateConfig.TOKEN) { p ->
                 _updateState.value = _updateState.value.copy(progress = p)
             }
             result.fold(
