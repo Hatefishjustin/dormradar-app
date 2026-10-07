@@ -1,7 +1,9 @@
 package com.dormradar.app.feature.settings
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -16,6 +18,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,6 +52,15 @@ fun UpdatePromptHost(viewModel: SettingsViewModel = hiltViewModel()) {
     // 用户点了「下次再说」→ 本次会话不再弹（除非已经下载完成等安装）
     if (updateState.downloadedApk == null && updateState.silenced) return
 
+    /** startActivity 失败兜底（v0.6.2：此前未捕获异常会让 App 直接闪退、无任何提示） */
+    fun safeStart(intent: android.content.Intent, fallback: String) {
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            android.widget.Toast.makeText(context, "$fallback：${e.message ?: "未知错误"}", android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
     AlertDialog(
         onDismissRequest = { if (updateState.downloadedApk == null) viewModel.silenceUpdatePrompt() },
         properties = DialogProperties(dismissOnBackPress = updateState.downloadedApk == null),
@@ -70,6 +82,15 @@ fun UpdatePromptHost(viewModel: SettingsViewModel = hiltViewModel()) {
                 } else if (release.body.isNotBlank()) {
                     Text(release.body, style = MaterialTheme.typography.bodySmall)
                 }
+                // 下载失败等错误信息直接在弹窗里可见（v0.6.2 前用户完全看不到失败原因）
+                updateState.message?.let {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         },
         confirmButton = {
@@ -79,9 +100,9 @@ fun UpdatePromptHost(viewModel: SettingsViewModel = hiltViewModel()) {
                     val apk = updateState.downloadedApk
                     if (apk != null) {
                         val intent = UpdateDownloader.installIntent(context, apk) {
-                            context.startActivity(UpdateDownloader.unknownSourceSettingsIntent(context))
+                            safeStart(UpdateDownloader.unknownSourceSettingsIntent(context), "无法打开权限设置")
                         }
-                        intent?.let { context.startActivity(it) }
+                        if (intent != null) safeStart(intent, "无法启动安装器")
                     } else {
                         viewModel.downloadUpdate()
                     }

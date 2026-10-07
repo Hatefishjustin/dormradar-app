@@ -52,6 +52,9 @@ object UpdateDownloader {
                     }
                 }
                 onProgress(100)
+                require(ApkValidation.looksLikeApk(out)) {
+                    "下载的内容不是有效的 APK（可能是网络错误页），请重试"
+                }
                 out
             } finally {
                 conn.disconnect()
@@ -72,7 +75,9 @@ object UpdateDownloader {
         val uri = FileProvider.getUriForFile(
             context, "${context.packageName}.fileprovider", apk,
         )
-        return Intent(Intent.ACTION_VIEW).apply {
+        // v0.6.2 改用专用安装动作：部分 ROM（MIUI 实测）对 ACTION_VIEW + APK 类型
+        // 解析不到安装器，startActivity 直接抛 ActivityNotFoundException → 表现为 App 闪退
+        return Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
             setDataAndType(uri, "application/vnd.android.package-archive")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         }

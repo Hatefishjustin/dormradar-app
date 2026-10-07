@@ -16,6 +16,8 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- App 内检查更新（Gitee API + APK 下载，用户需求 2026-10-07） -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- App 内自更新安装（v0.6.2 修复：缺此权限 Android 8+ 拦截安装意图，安装器起不来） -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
 
