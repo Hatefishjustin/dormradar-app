@@ -52,6 +52,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.dormradar.app.core.deploy.DiagArchiveReuse
 import com.dormradar.app.core.deploy.EnergySeriesCollector
 import com.dormradar.app.core.deploy.NoiseBaselineAdvisor
 import com.dormradar.app.core.device.DeviceInfo
@@ -62,8 +63,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -71,6 +76,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SensitivityViewModel @Inject constructor(
     private val connection: RadarConnection,
+    private val settings: com.dormradar.app.core.data.SettingsStore,
 ) : ViewModel() {
 
     val deviceInfo: StateFlow<DeviceInfo?> = connection.deviceInfo
@@ -161,6 +167,11 @@ class SensitivityViewModel @Inject constructor(
     private val _baselineSuggestion = MutableStateFlow<NoiseBaselineAdvisor.Suggestion?>(null)
     val baselineSuggestion: StateFlow<NoiseBaselineAdvisor.Suggestion?> = _baselineSuggestion.asStateFlow()
 
+    /** 诊断两步引导的存档是否可用（有档案就显示「免重测」按钮，采样档案共享 2026-10-07） */
+    val archiveAvailable: StateFlow<Boolean> = settings.deployArchiveCsv
+        .map { !it.isNullOrBlank() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     private var baselineJob: Job? = null
 
     /** 保留原始采样序列，切换边距/口径时可离线重算而不必重新采样 */
@@ -225,6 +236,38 @@ class SensitivityViewModel @Inject constructor(
         _baselineSampling.value = false
         _baselineRemain.value = 0
         _baselineInfo.value = "已取消本次采样"
+    }
+
+    /**
+     * 复用「距离诊断」两步引导的存档（无人段），免重复采样（用户需求 2026-10-07：测一次处处用）。
+     * 档案里无人段没有工程帧、或没有档案时如实提示。
+     */
+    fun useArchivedBaseline() {
+        if (_baselineSampling.value) return
+        viewModelScope.launch {
+            val csv = settings.deployArchiveCsv.first()
+            if (csv.isNullOrBlank()) {
+                _baselineInfo.value = "还没有存档采样：先到「设置 → 调试工具 → 距离诊断」完成一次两步引导"
+                return@launch
+            }
+            val meta = settings.deployArchiveMeta.first() ?: ""
+            val ageMin = meta.split(',').firstOrNull()?.toLongOrNull()?.let {
+                (System.currentTimeMillis() - it) / 60_000
+            }
+            val archived = com.dormradar.app.core.log.DistanceDiagFormats.parseCsv(csv)
+            val noPersonEng = DiagArchiveReuse.noPersonEngineering(archived)
+            if (noPersonEng.isEmpty()) {
+                _baselineInfo.value = "存档里没有「无人阶段」的工程帧数据，无法复用——请重新走一次两步引导"
+                return@launch
+            }
+            val (motion, static) = DiagArchiveReuse.perGateSeries(noPersonEng)
+            baselineMotion = motion
+            baselineStatic = static
+            recomputeBaseline()
+            _baselineInfo.value =
+                "已使用 ${ageMin ?: "?"} 分钟前诊断采样的无人段（${noPersonEng.size} 帧/门）" +
+                    "算出浮动上界。调整边距看效果，或点「一键应用」写入设备"
+        }
     }
 
     fun setBaselineMargin(value: Int) {
@@ -298,6 +341,7 @@ fun SensitivityScreen(
     val baselineMargin by viewModel.baselineMargin.collectAsStateWithLifecycle()
     val baselineBasis by viewModel.baselineBasis.collectAsStateWithLifecycle()
     val baselineSuggestion by viewModel.baselineSuggestion.collectAsStateWithLifecycle()
+    val archiveAvailable by viewModel.archiveAvailable.collectAsStateWithLifecycle()
     val params = deviceInfo?.params
     val resolutionCm = if (deviceInfo?.resolution02m == true) 20 else 75
 
@@ -385,8 +429,10 @@ fun SensitivityScreen(
                     suggestion = baselineSuggestion,
                     applying = applying,
                     resolutionCm = resolutionCm,
+                    archiveAvailable = archiveAvailable,
                     onStart = viewModel::startBaselineSampling,
                     onCancel = viewModel::cancelBaselineSampling,
+                    onUseArchive = viewModel::useArchivedBaseline,
                     onMargin = viewModel::setBaselineMargin,
                     onBasis = viewModel::setBaselineBasis,
                     onApply = viewModel::applyBaseline,

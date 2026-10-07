@@ -53,6 +53,7 @@ fun DeployScreen(
     val message by viewModel.message.collectAsStateWithLifecycle()
     val applying by viewModel.applying.collectAsStateWithLifecycle()
     val engineeringOn by viewModel.engineeringMode.collectAsStateWithLifecycle()
+    val archiveAvailable by viewModel.archiveAvailable.collectAsStateWithLifecycle()
 
     // 进页开工程模式（采样数据源），离开自动关（模式照抄灵敏度页：onDispose 时 VM 尚存活）
     LaunchedEffect(Unit) { viewModel.setEngineering(true) }
@@ -84,6 +85,27 @@ fun DeployScreen(
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Spacer(Modifier.height(8.dp))
+            }
+
+            // ---- 快捷入口：复用诊断存档（采样档案共享，2026-10-07）----
+            if (archiveAvailable && noiseSamples == null && activitySamples == null && sampling == null) {
+                Card(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            "检测到「距离诊断」的存档采样",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "可以直接用上次两步引导的无人/有人数据生成建议，免去下面两段 30 秒采样。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(onClick = viewModel::useArchivedSamples) { Text("用存档直接生成建议") }
+                    }
+                }
             }
 
             // ---- 第 1 步：位置建议（静态引导） ----

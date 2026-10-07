@@ -10,12 +10,19 @@ android {
     namespace = "com.dormradar.app"
     compileSdk = 35
 
+    // 构建目录挪到纯 ASCII 路径（2026-10-07）：仓库路径含中文，Gradle 会把 classpath 规范化成
+    // 中文路径写进测试 worker 的 argfile，而 JDK17 launcher 以 GBK 解析 → 单测全部
+    // ClassNotFoundException（subst 盘符也挡不住规范化，实测复现，详见 docs/08 §7）。
+    // build 目录搬出中文树后，单测 classpath 全 ASCII，问题根除。副作用：APK/测试报告
+    // 输出位置变为 D:\dormradar-build（发版脚本用 -ApkPath 显式传参，不受影响）。
+    layout.buildDirectory = File("D:/dormradar-build")
+
     defaultConfig {
         applicationId = "com.dormradar.app"
         minSdk = 26          // 覆盖近 8 年设备，BLE API 稳定
         targetSdk = 35
-        versionCode = 11
-        versionName = "0.6.0"
+        versionCode = 12
+        versionName = "0.6.1"
     }
 
     buildTypes {

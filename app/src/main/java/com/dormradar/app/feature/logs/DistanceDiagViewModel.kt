@@ -2,9 +2,11 @@ package com.dormradar.app.feature.logs
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dormradar.app.core.data.SettingsStore
 import com.dormradar.app.core.device.RadarConnection
 import com.dormradar.app.core.log.DiagPhase
 import com.dormradar.app.core.log.DistanceDiagAnalysis
+import com.dormradar.app.core.log.DistanceDiagFormats
 import com.dormradar.app.core.log.DistanceDiagRecorder
 import com.dormradar.app.core.log.DistanceDiagSample
 import com.dormradar.app.core.log.LogExporter
@@ -53,6 +55,7 @@ data class GuideUi(val stage: GuideStage, val remainSeconds: Int) {
 class DistanceDiagViewModel @Inject constructor(
     private val recorder: DistanceDiagRecorder,
     private val connection: RadarConnection,
+    private val settings: SettingsStore,
     private val exporter: LogExporter,
 ) : ViewModel() {
 
@@ -89,6 +92,8 @@ class DistanceDiagViewModel @Inject constructor(
     /**
      * 开始两步引导：清空旧数据 → 无人 [PHASE_SECONDS] 秒 → 有人 [PHASE_SECONDS] 秒 → 自动停止出结论。
      * 阶段标记在每步开始时设置，只影响之后写入的样本。
+     * **完成后自动把样本存档**（SettingsStore），无人基线定参/部署向导可直接复用，免重复采样
+     * （用户需求 2026-10-07：「只用测一次，这份数据给其他有需要的用」）。
      */
     fun startGuide() {
         if (_guide.value.running) return
@@ -103,9 +108,23 @@ class DistanceDiagViewModel @Inject constructor(
             runPhase(GuideStage.PERSON)
 
             recorder.stop()
+            // 存档：两段齐全的样本供其他功能复用（无人基线定参/部署向导）
+            val snapshot = recorder.samples.value
+            if (snapshot.isNotEmpty()) {
+                settings.saveDeployArchive(
+                    csv = DistanceDiagFormats.csv(snapshot),
+                    resolutionCm = resolutionCm,
+                    rows = snapshot.size,
+                )
+                _archiveSaved.value = true
+            }
             _guide.value = GuideUi(GuideStage.DONE, 0)
         }
     }
+
+    /** 本次引导样本是否已成功存档（UI 显示"其他功能可直接用"提示） */
+    private val _archiveSaved = MutableStateFlow(false)
+    val archiveSaved: StateFlow<Boolean> = _archiveSaved.asStateFlow()
 
     fun cancelGuide() {
         guideJob?.cancel()

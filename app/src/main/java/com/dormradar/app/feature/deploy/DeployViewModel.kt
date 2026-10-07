@@ -4,12 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dormradar.app.core.data.ConfigCodec
 import com.dormradar.app.core.data.ConfigRepository
+import com.dormradar.app.core.data.SettingsStore
 import com.dormradar.app.core.deploy.DeployAdvisor
 import com.dormradar.app.core.deploy.DeploySuggestion
+import com.dormradar.app.core.deploy.DiagArchiveReuse
 import com.dormradar.app.core.deploy.EnergySamples
 import com.dormradar.app.core.deploy.GateSample
 import com.dormradar.app.core.device.OpResult
 import com.dormradar.app.core.device.RadarConnection
+import com.dormradar.app.core.log.DistanceDiagFormats
 import com.dormradar.app.core.log.LogStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.text.SimpleDateFormat
@@ -18,8 +21,12 @@ import java.util.Locale
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -38,6 +45,7 @@ enum class SampleKind(val label: String) {
 class DeployViewModel @Inject constructor(
     private val connection: RadarConnection,
     private val configRepo: ConfigRepository,
+    private val settings: SettingsStore,
     private val log: LogStore,
 ) : ViewModel() {
 
@@ -76,6 +84,11 @@ class DeployViewModel @Inject constructor(
     val applying: StateFlow<Boolean> = _applying.asStateFlow()
 
     private var sampleJob: Job? = null
+
+    /** 诊断两步引导的存档是否可用（采样档案共享 2026-10-07：测一次处处用） */
+    val archiveAvailable: StateFlow<Boolean> = settings.deployArchiveCsv
+        .map { !it.isNullOrBlank() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /** 开/关工程模式（采样数据源；页面退出时由 UI 调 false，模式照抄灵敏度页） */
     fun setEngineering(enabled: Boolean) {
@@ -140,6 +153,43 @@ class DeployViewModel @Inject constructor(
         val n = _noiseSamples.value
         val a = _activitySamples.value
         _suggestion.value = if (n != null && a != null) DeployAdvisor.suggest(n, a) else null
+    }
+
+    /**
+     * 复用「距离诊断」两步引导的存档（用户需求 2026-10-07：测一次处处用）：
+     * 无人段 → 底噪样本、有人段 → 走动样本，直接生成部署建议，免两段 30s 采样。
+     * 档案缺失或缺段时如实提示；与实时采样的聚合口径一致（每门 max(运动,静止) 的 avg/max）。
+     */
+    fun useArchivedSamples() {
+        if (_sampling.value != null) return
+        viewModelScope.launch {
+            val csv = settings.deployArchiveCsv.first()
+            if (csv.isNullOrBlank()) {
+                _message.value = "还没有存档采样：先到「设置 → 调试工具 → 距离诊断」完成一次两步引导"
+                return@launch
+            }
+            val meta = settings.deployArchiveMeta.first() ?: ""
+            val ageMin = meta.split(',').firstOrNull()?.toLongOrNull()?.let {
+                (System.currentTimeMillis() - it) / 60_000
+            }
+            val archived = DistanceDiagFormats.parseCsv(csv)
+            val noPerson = DiagArchiveReuse.noPersonEngineering(archived)
+            val person = DiagArchiveReuse.personEngineering(archived)
+            val missing = buildList {
+                if (noPerson.isEmpty()) add("无人")
+                if (person.isEmpty()) add("有人")
+            }
+            if (missing.isNotEmpty()) {
+                _message.value = "存档里缺少「${missing.joinToString("和")}阶段」的工程帧数据，无法复用——请重新走一次两步引导"
+                return@launch
+            }
+            val gateCount = maxOf(DiagArchiveReuse.gateCountOf(noPerson), DiagArchiveReuse.gateCountOf(person))
+            _noiseSamples.value = DiagArchiveReuse.toEnergySamples(noPerson, gateCount)
+            _activitySamples.value = DiagArchiveReuse.toEnergySamples(person, gateCount)
+            recomputeSuggestion()
+            _message.value = "已复用 ${ageMin ?: "?"} 分钟前的诊断存档" +
+                "（无人 ${noPerson.size} 帧 / 有人 ${person.size} 帧），建议已生成，可直接应用或重新采样覆盖"
+        }
     }
 
     fun setUnmannedSeconds(seconds: Int) {

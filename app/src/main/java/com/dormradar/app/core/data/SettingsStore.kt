@@ -41,6 +41,11 @@ class SettingsStore @Inject constructor(
 
         // ---- 阶段 4 扩展：首页卡片自定义（2026-10-07）；更新源已写死 UpdateConfig（不再走 DataStore）----
         val homeCardLayout = stringPreferencesKey("home_card_layout")
+
+        // ---- 阶段 4 扩展：采样档案共享（2026-10-07，"测一次、处处用"）----
+        // 诊断两步引导（无人+有人）完成后自动存档的 CSV，供无人基线定参/部署向导复用，免重复采样
+        val deployArchiveCsv = stringPreferencesKey("deploy_archive_csv")
+        val deployArchiveMeta = stringPreferencesKey("deploy_archive_meta") // "savedAtMs,resolutionCm,rows"
     }
 
     val bluetoothPassword: Flow<String> =
@@ -73,6 +78,14 @@ class SettingsStore @Inject constructor(
     val homeCardLayout: Flow<HomeCardLayout> =
         context.dataStore.data.map { HomeCardLayout.decode(it[Keys.homeCardLayout]) }
 
+    /** 最近一次两步引导采样的档案（CSV；null = 无档案） */
+    val deployArchiveCsv: Flow<String?> =
+        context.dataStore.data.map { it[Keys.deployArchiveCsv] }
+
+    /** 档案元信息："savedAtMs,resolutionCm,rows" */
+    val deployArchiveMeta: Flow<String?> =
+        context.dataStore.data.map { it[Keys.deployArchiveMeta] }
+
     suspend fun setPassword(value: String) = set(Keys.bluetoothPassword, value)
     suspend fun setFakeDataEnabled(value: Boolean) = set(Keys.fakeDataEnabled, value)
     suspend fun setMonitorMode(value: MonitorMode) = set(Keys.monitorMode, value.name)
@@ -80,6 +93,21 @@ class SettingsStore @Inject constructor(
     suspend fun setKeepAliveGuideShown(value: Boolean) = set(Keys.keepAliveGuideShown, value)
     suspend fun setFrameLogEnabled(value: Boolean) = set(Keys.frameLogEnabled, value)
     suspend fun setHomeCardLayout(value: HomeCardLayout) = set(Keys.homeCardLayout, value.encode())
+
+    /** 保存采样档案（覆盖式：只保留最近一次；rows 写进 meta 供 UI 显示） */
+    suspend fun saveDeployArchive(csv: String, resolutionCm: Int, rows: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.deployArchiveCsv] = csv
+            prefs[Keys.deployArchiveMeta] = "${System.currentTimeMillis()},$resolutionCm,$rows"
+        }
+    }
+
+    suspend fun clearDeployArchive() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(Keys.deployArchiveCsv)
+            prefs.remove(Keys.deployArchiveMeta)
+        }
+    }
 
     suspend fun setLastDeviceMac(value: String?) {
         context.dataStore.edit { prefs ->

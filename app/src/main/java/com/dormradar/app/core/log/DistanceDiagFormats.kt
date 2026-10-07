@@ -67,8 +67,10 @@ data class DistanceDiagSample(
         moveEnergy == other.moveEnergy && staticDistanceCm == other.staticDistanceCm &&
         staticEnergy == other.staticEnergy && detectDistanceCm == other.detectDistanceCm &&
         displayDistanceCm == other.displayDistanceCm && inHold == other.inHold &&
-        moveGateEnergies?.contentEquals(other.moveGateEnergies) == true &&
-        staticGateEnergies?.contentEquals(other.staticGateEnergies) == true
+        // 2026-10-07 修复：原写法 `moveGateEnergies?.contentEquals(..) == true` 在两侧同为 null 时
+        // 恒为 false，导致 basic 帧（无门能量）样本永远不相等——采样档案 roundtrip 测试抓出
+        moveGateEnergies.contentEquals(other.moveGateEnergies) &&
+        staticGateEnergies.contentEquals(other.staticGateEnergies)
 
     override fun hashCode(): Int = listOf(
         wallClockMs, relMs, frameType, phase, targetState, moveDistanceCm, moveEnergy,
@@ -121,5 +123,47 @@ object DistanceDiagFormats {
     fun csv(samples: List<DistanceDiagSample>): String = buildString {
         appendLine(HEADER)
         samples.forEach { appendLine(line(it)) }
+    }
+
+    /**
+     * 解析 [csv]（本类产物）回样本列表；空/坏行跳过。用于**采样档案共享**（2026-10-07）：
+     * 两步引导完成后把 CSV 存 DataStore，无人基线定参/部署向导从档案复用，免重复采样。
+     * 门能量列为空 → null（basic 帧）；非空按分号拆分。
+     */
+    fun parseCsv(text: String): List<DistanceDiagSample> {
+        val out = ArrayList<DistanceDiagSample>()
+        text.lineSequence().forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed.isEmpty() || trimmed == HEADER) return@forEach
+            val c = trimmed.split(',')
+            if (c.size != COLUMN_COUNT) return@forEach
+            val epoch = c[0].toLongOrNull() ?: return@forEach
+            val rel = c[2].toLongOrNull() ?: return@forEach
+            val moveGates = c[14].split(';')
+                .mapNotNull { it.trim().toIntOrNull() }
+                .takeIf { it.isNotEmpty() }
+                ?.toIntArray()
+            val staticGates = c[15].split(';')
+                .mapNotNull { it.trim().toIntOrNull() }
+                .takeIf { it.isNotEmpty() }
+                ?.toIntArray()
+            out += DistanceDiagSample(
+                wallClockMs = epoch,
+                relMs = rel,
+                frameType = c[3],
+                phase = c[4].toIntOrNull() ?: 0,
+                targetState = c[5].toIntOrNull() ?: 0,
+                moveDistanceCm = c[7].toIntOrNull() ?: 0,
+                moveEnergy = c[8].toIntOrNull() ?: 0,
+                staticDistanceCm = c[9].toIntOrNull() ?: 0,
+                staticEnergy = c[10].toIntOrNull() ?: 0,
+                detectDistanceCm = c[11].toIntOrNull() ?: 0,
+                displayDistanceCm = c[12].toIntOrNull() ?: -1,
+                inHold = c[13] == "1",
+                moveGateEnergies = moveGates,
+                staticGateEnergies = staticGates,
+            )
+        }
+        return out
     }
 }

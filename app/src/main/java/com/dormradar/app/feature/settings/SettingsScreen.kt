@@ -391,7 +391,7 @@ fun SettingsScreen(
                 Text("关于", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "宿管雷达 DormRadar v0.6.0\n面向 HLK-LD2410C 毫米波雷达的监控/调参工具。\n新增：首页卡片自定义（编辑模式）、App 内检查更新（Gitee 源）、一键报 bug、OUT 引脚灯控实验区。",
+                    "宿管雷达 DormRadar v0.6.1\n面向 HLK-LD2410C 毫米波雷达的监控/调参工具。\n新增：采样档案共享——「距离诊断」两步引导采一次样，「无人基线定参」和「部署向导」直接复用，免重复采样。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

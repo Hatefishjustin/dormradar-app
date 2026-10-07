@@ -1,6 +1,7 @@
 package com.dormradar.app.core.log
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.text.SimpleDateFormat
@@ -240,5 +241,41 @@ class DistanceDiagTest {
         r.onRawFrame("basic", 1, 0, 0, 0, 0, 110, null, null)
         assertEquals(1, r.samples.value.size)
         assertEquals(0L, r.samples.value.first().relMs)
+    }
+
+    // ---- parseCsv（采样档案共享 2026-10-07：存档 → 其他功能复用）----
+
+    @Test
+    fun `parseCsv roundtrip_工程帧含门数组与阶段`() {
+        val original = listOf(
+            sample(
+                phase = DiagPhase.NO_PERSON, frameType = "engineering", display = -1, inHold = true,
+                moveGates = intArrayOf(3, 25, 0, 0), staticGates = intArrayOf(9, 40, 7, 0),
+            ),
+            sample(
+                phase = DiagPhase.PERSON, frameType = "engineering", detect = 450,
+                moveGates = intArrayOf(60, 12), staticGates = intArrayOf(5, 88),
+            ),
+        )
+        val parsed = DistanceDiagFormats.parseCsv(DistanceDiagFormats.csv(original))
+        assertEquals(original, parsed)
+    }
+
+    @Test
+    fun `parseCsv roundtrip_basic帧门列为空`() {
+        val original = listOf(sample())
+        val parsed = DistanceDiagFormats.parseCsv(DistanceDiagFormats.csv(original))
+        assertEquals(original, parsed)
+        assertNull(parsed[0].moveGateEnergies)
+        assertNull(parsed[0].staticGateEnergies)
+    }
+
+    @Test
+    fun `parseCsv 跳过表头空行与坏行`() {
+        val csv = DistanceDiagFormats.HEADER + "\n" + "\n" + "not,a,row\n" +
+            "1,2,3\n" + DistanceDiagFormats.line(sample()) + "\n"
+        val parsed = DistanceDiagFormats.parseCsv(csv)
+        assertEquals(1, parsed.size)
+        assertEquals(sample(), parsed[0])
     }
 }

@@ -43,8 +43,11 @@ fun NoiseBaselineCard(
     suggestion: NoiseBaselineAdvisor.Suggestion?,
     applying: Boolean,
     resolutionCm: Int,
+    /** 诊断两步引导的存档可用（显示复用按钮） */
+    archiveAvailable: Boolean,
     onStart: () -> Unit,
     onCancel: () -> Unit,
+    onUseArchive: () -> Unit,
     onMargin: (Int) -> Unit,
     onBasis: (NoiseBaselineAdvisor.Basis) -> Unit,
     onApply: () -> Unit,
@@ -83,6 +86,14 @@ fun NoiseBaselineCard(
                             Text(if (applying) "正在写入…" else "一键应用")
                         }
                     }
+                }
+                if (archiveAvailable) {
+                    // 采样档案共享（用户需求 2026-10-07：测一次处处用）
+                    OutlinedButton(
+                        onClick = onUseArchive,
+                        enabled = enabled && !applying,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("用「距离诊断」上次采样的无人段（免重测）") }
                 }
             }
 

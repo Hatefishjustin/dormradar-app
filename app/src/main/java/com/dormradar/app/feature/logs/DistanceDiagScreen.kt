@@ -160,6 +160,7 @@ fun DistanceDiagScreen(
 /** 两步引导卡：明确告诉用户"现在该干什么" */
 @Composable
 private fun GuideCard(guide: GuideUi, viewModel: DistanceDiagViewModel) {
+    val archiveSaved by viewModel.archiveSaved.collectAsStateWithLifecycle()
     val container = when (guide.stage) {
         GuideStage.NO_PERSON -> MaterialTheme.colorScheme.secondaryContainer
         GuideStage.PERSON -> MaterialTheme.colorScheme.tertiaryContainer
