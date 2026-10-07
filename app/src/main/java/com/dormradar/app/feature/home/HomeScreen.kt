@@ -36,6 +36,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -74,9 +75,14 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dormradar.app.core.data.HomeCardId
+import com.dormradar.app.core.data.HomeCardLayout
 import com.dormradar.app.core.device.ConnState
 import com.dormradar.app.core.device.DeviceInfo
+import com.dormradar.app.core.device.GateEnergies
+import com.dormradar.app.core.device.RadarState
 import com.dormradar.app.core.protocol.ProtocolConst
+import com.dormradar.app.feature.config.EnergyBarsCard
 import com.dormradar.app.feature.config.ThresholdEditDialog
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -259,6 +265,12 @@ private fun DevicePanel(viewModel: HomeViewModel, connState: ConnState, onNaviga
     val energyHistory by viewModel.energyHistory.collectAsStateWithLifecycle()
     val suspectedStatic by viewModel.suspectedStatic.collectAsStateWithLifecycle()
     val suspectedNearField by viewModel.suspectedNearField.collectAsStateWithLifecycle()
+    // 首页卡片自定义（用户需求 2026-10-07）
+    val cardLayout by viewModel.homeCardLayout.collectAsStateWithLifecycle()
+    val gateEnergies by viewModel.gateEnergies.collectAsStateWithLifecycle()
+    val engineeringOn by viewModel.engineeringMode.collectAsStateWithLifecycle()
+    var editing by rememberSaveable { mutableStateOf(false) }
+    val resolutionCm = if (deviceInfo?.resolution02m == true) 20 else 75
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -271,7 +283,66 @@ private fun DevicePanel(viewModel: HomeViewModel, connState: ConnState, onNaviga
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text("首页", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                OutlinedButton(onClick = viewModel::disconnect) { Text("断开") }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (editing) {
+                        TextButton(onClick = { editing = false }) { Text("完成") }
+                    } else {
+                        TextButton(onClick = { editing = true }) { Text("编辑") }
+                    }
+                    OutlinedButton(onClick = viewModel::disconnect) { Text("断开") }
+                }
+            }
+        }
+
+        // 编辑模式：预设布局 + 每卡开关/排序（用户需求 2026-10-07）
+        if (editing) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("自定义首页", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = false,
+                                onClick = { viewModel.saveCardLayout(HomeCardLayout.SIMPLE) },
+                                label = { Text("简洁") },
+                            )
+                            FilterChip(
+                                selected = false,
+                                onClick = { viewModel.saveCardLayout(HomeCardLayout.STANDARD) },
+                                label = { Text("标准") },
+                            )
+                            FilterChip(
+                                selected = false,
+                                onClick = { viewModel.saveCardLayout(HomeCardLayout.FULL) },
+                                label = { Text("全能") },
+                            )
+                        }
+                        cardLayout.cards.forEachIndexed { index, (id, visible) ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                TextButton(
+                                    enabled = index > 0,
+                                    onClick = { viewModel.moveCardUp(id) },
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                                ) { Text("↑") }
+                                TextButton(
+                                    enabled = index < cardLayout.cards.size - 1,
+                                    onClick = { viewModel.moveCardDown(id) },
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                                ) { Text("↓") }
+                                Text(homeCardTitle(id), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                                Switch(checked = visible, onCheckedChange = { viewModel.toggleCard(id, it) })
+                            }
+                        }
+                        Text(
+                            "隐藏的卡片不在首页显示（数据仍正常记录）；排序即时保存",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
 
@@ -286,11 +357,6 @@ private fun DevicePanel(viewModel: HomeViewModel, connState: ConnState, onNaviga
                     )
                 }
             }
-        }
-
-        // 状态大卡片（PRD 4.1 第 3 项：三态可视化；用平滑状态防"有人/无人"文字闪烁）
-        item {
-            StatusHero(radarState = displayState, connState = connState)
         }
 
         // 疑似静态反射诊断提示（贴门板场景"距离一直不变、没人也显示有人"的根因引导，用户反馈 2026-09-28）
@@ -335,34 +401,90 @@ private fun DevicePanel(viewModel: HomeViewModel, connState: ConnState, onNaviga
             }
         }
 
-        // 雷达视图（半圆扇形，直观定位目标距离，用户需求 2026-09-27）
-        item {
-            RadarScopeCard(radarState = displayState, deviceInfo = deviceInfo)
-        }
-
-        // 实时数据网格（平滑值，数字不跳动）
-        item {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatRow("运动目标", displayState?.moveDistanceCm, displayState?.moveEnergy)
-                    HorizontalDivider()
-                    StatRow("静止目标", displayState?.staticDistanceCm, displayState?.staticEnergy)
-                    HorizontalDivider()
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("检测距离", style = MaterialTheme.typography.bodyLarge)
+        // ---- 可配置卡片池（按用户自定义顺序渲染；编辑模式下隐藏卡以弱化占位显示，2026-10-07）----
+        items(cardLayout.cards.filter { it.second || editing }, key = { it.first.name }) { (id, visible) ->
+            Box(modifier = Modifier.fillMaxWidth().then(if (visible) Modifier else Modifier.alpha(0.35f))) {
+                Column {
+                    if (!visible) {
                         Text(
-                            // 无人时设备报 0：显示"—"而不是误导性的"0 m"（用户反馈 2026-09-28）
-                            if (displayState?.hasTarget == true) formatMeter(displayState!!.detectDistanceCm) else "--",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontFamily = FontFamily.Monospace,
+                            "（已隐藏）" + homeCardTitle(id),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 2.dp),
                         )
                     }
+                    HomeCardBody(
+                        id = id,
+                        viewModel = viewModel,
+                        connState = connState,
+                        displayState = displayState,
+                        deviceInfo = deviceInfo,
+                        energyHistory = energyHistory,
+                        gateEnergies = gateEnergies,
+                        engineeringOn = engineeringOn,
+                        resolutionCm = resolutionCm,
+                        onNavigate = onNavigate,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 卡片显示名（编辑模式用） */
+private fun homeCardTitle(id: HomeCardId): String = when (id) {
+    HomeCardId.STATUS -> "状态大卡"
+    HomeCardId.SCOPE -> "雷达视图"
+    HomeCardId.GRID -> "实时数据"
+    HomeCardId.ENERGY -> "能量曲线"
+    HomeCardId.ENGINEERING -> "工程能量图"
+    HomeCardId.QUICK_SETUP -> "一键设置"
+    HomeCardId.MONITOR -> "后台监控"
+    HomeCardId.DEVICE_INFO -> "设备信息"
+}
+
+/** 卡片池渲染体（内容与原首页一致，仅改为按 id 分发；2026-10-07 卡片化） */
+@Composable
+private fun HomeCardBody(
+    id: HomeCardId,
+    viewModel: HomeViewModel,
+    connState: ConnState,
+    displayState: RadarState?,
+    deviceInfo: DeviceInfo?,
+    energyHistory: List<EnergySample>,
+    gateEnergies: GateEnergies?,
+    engineeringOn: Boolean,
+    resolutionCm: Int,
+    onNavigate: (String) -> Unit,
+) {
+    when (id) {
+        // 状态大卡片（PRD 4.1 第 3 项：三态可视化；用平滑状态防"有人/无人"文字闪烁）
+        HomeCardId.STATUS -> StatusHero(radarState = displayState, connState = connState)
+
+        // 雷达视图（半圆扇形，直观定位目标距离，用户需求 2026-09-27）
+        HomeCardId.SCOPE -> RadarScopeCard(radarState = displayState, deviceInfo = deviceInfo)
+
+        // 实时数据网格（平滑值，数字不跳动）
+        HomeCardId.GRID -> Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                StatRow("运动目标", displayState?.moveDistanceCm, displayState?.moveEnergy)
+                HorizontalDivider()
+                StatRow("静止目标", displayState?.staticDistanceCm, displayState?.staticEnergy)
+                HorizontalDivider()
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("检测距离", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        // 无人时设备报 0：显示"—"而不是误导性的"0 m"（用户反馈 2026-09-28）
+                        if (displayState?.hasTarget == true) formatMeter(displayState!!.detectDistanceCm) else "--",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontFamily = FontFamily.Monospace,
+                    )
                 }
             }
         }
 
         // 能量实时曲线（简单层·首页图表区，docs/06 阶段 2 任务 4；门限可直接拖动调整）
-        item {
+        HomeCardId.ENERGY -> {
             val configBusy by viewModel.configBusy.collectAsStateWithLifecycle()
             val thresholdMessage by viewModel.thresholdMessage.collectAsStateWithLifecycle()
             EnergyChartCard(
@@ -375,53 +497,71 @@ private fun DevicePanel(viewModel: HomeViewModel, connState: ConnState, onNaviga
             )
         }
 
-        // 一键设置入口（简单层直达）
-        item {
-            Card(
-                onClick = { onNavigate("quicksetup") },
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                ),
-            ) {
+        // 工程能量图（新增卡片，用户需求 2026-10-07：工程模式的每门实时能量图搬进首页）
+        HomeCardId.ENGINEERING -> Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("一键设置", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("工程能量图", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                         Text(
-                            "三套推荐参数（标准 / 灵敏穿门 / 强抗干扰），一键下发并自动校验",
+                            "每个距离门的运动/静止实时能量（数据量增大、耗电略增），\n断开连接后自动关闭",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Text("›", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                    Switch(checked = engineeringOn, onCheckedChange = viewModel::setEngineeringMode)
+                }
+                if (engineeringOn) {
+                    EnergyBarsCard(gateEnergies, resolutionCm)
                 }
             }
         }
 
-        // 后台监控开关（阶段 3：前台服务 + 通知引擎 + 事件时间线）
-        item {
-            MonitorCard(viewModel)
+        // 一键设置入口（简单层直达）
+        HomeCardId.QUICK_SETUP -> Card(
+            onClick = { onNavigate("quicksetup") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            ),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("一键设置", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        "三套推荐参数（标准 / 灵敏穿门 / 强抗干扰），一键下发并自动校验",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text("›", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+            }
         }
 
+        // 后台监控开关（阶段 3：前台服务 + 通知引擎 + 事件时间线）
+        HomeCardId.MONITOR -> MonitorCard(viewModel)
+
         // 设备信息卡（PRD 4.1 第 12 项）
-        deviceInfo?.let { info ->
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("设备信息", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                        InfoLine("MAC", info.mac)
-                        info.firmwareVersion?.let { InfoLine("固件版本", it) }
-                        info.protocolVersion?.let { InfoLine("协议版本", "v$it") }
-                        info.params?.let { p ->
-                            InfoLine("最大距离门", "运动 ${p.maxMoveGate} / 静止 ${p.maxStaticGate}")
-                            InfoLine("无人持续时间", "${p.unmannedSeconds} 秒")
-                        }
-                        info.resolution02m?.let { InfoLine("距离分辨率", if (it) "0.2 m" else "0.75 m") }
-                        if (info.isFake) InfoLine("数据来源", "模拟（可在设置中关闭）")
+        HomeCardId.DEVICE_INFO -> deviceInfo?.let { info ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("设备信息", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                    InfoLine("MAC", info.mac)
+                    info.firmwareVersion?.let { InfoLine("固件版本", it) }
+                    info.protocolVersion?.let { InfoLine("协议版本", "v$it") }
+                    info.params?.let { p ->
+                        InfoLine("最大距离门", "运动 ${p.maxMoveGate} / 静止 ${p.maxStaticGate}")
+                        InfoLine("无人持续时间", "${p.unmannedSeconds} 秒")
                     }
+                    info.resolution02m?.let { InfoLine("距离分辨率", if (it) "0.2 m" else "0.75 m") }
+                    if (info.isFake) InfoLine("数据来源", "模拟（可在设置中关闭）")
                 }
             }
         }

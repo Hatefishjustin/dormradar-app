@@ -6,8 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.dormradar.app.core.ble.BleClient
 import com.dormradar.app.core.ble.BleScanDevice
 import com.dormradar.app.core.data.SettingsStore
+import com.dormradar.app.core.data.HomeCardLayout
+import com.dormradar.app.core.data.HomeCardId
 import com.dormradar.app.core.device.ConnState
 import com.dormradar.app.core.device.DeviceInfo
+import com.dormradar.app.core.device.GateEnergies
 import com.dormradar.app.core.device.OpResult
 import com.dormradar.app.core.device.RadarConnection
 import com.dormradar.app.core.device.RadarState
@@ -72,6 +75,43 @@ class HomeViewModel @Inject constructor(
     val connState: StateFlow<ConnState> = connection.connState
     val radarState: StateFlow<RadarState?> = connection.radarState
     val deviceInfo: StateFlow<DeviceInfo?> = connection.deviceInfo
+
+    // ---- 首页卡片自定义（用户需求 2026-10-07）----
+    val gateEnergies: StateFlow<GateEnergies?> = connection.gateEnergies
+    val engineeringMode: StateFlow<Boolean> = connection.engineeringMode
+
+    val homeCardLayout: StateFlow<HomeCardLayout> =
+        settings.homeCardLayout.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeCardLayout.STANDARD)
+
+    fun setEngineeringMode(enabled: Boolean) {
+        viewModelScope.launch { runCatching { connection.setEngineeringMode(enabled) } }
+    }
+
+    fun saveCardLayout(layout: HomeCardLayout) {
+        viewModelScope.launch { settings.setHomeCardLayout(layout) }
+    }
+
+    /** 编辑模式：把某张卡上移一位（只在显示中的卡之间移动；边界自动忽略） */
+    fun moveCardUp(id: HomeCardId) = moveCard(id, -1)
+
+    /** 编辑模式：把某张卡下移一位 */
+    fun moveCardDown(id: HomeCardId) = moveCard(id, +1)
+
+    private fun moveCard(id: HomeCardId, delta: Int) {
+        val current = homeCardLayout.value.cards.toMutableList()
+        val index = current.indexOfFirst { it.first == id }
+        val target = index + delta
+        if (index < 0 || target < 0 || target >= current.size) return
+        val item = current.removeAt(index)
+        current.add(target, item)
+        saveCardLayout(HomeCardLayout(current))
+    }
+
+    /** 编辑模式：切某张卡的显示/隐藏（顺序不变） */
+    fun toggleCard(id: HomeCardId, visible: Boolean) {
+        val current = homeCardLayout.value.cards.map { if (it.first == id) it.first to visible else it }
+        saveCardLayout(HomeCardLayout(current))
+    }
 
     /** 配置会话进行中（拖门限写入时禁用编辑） */
     val configBusy: StateFlow<Boolean> = connection.configBusy

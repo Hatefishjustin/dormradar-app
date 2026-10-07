@@ -77,8 +77,7 @@ class EngineeringViewModel @Inject constructor(
     }
 }
 
-private val MOVE_COLOR = Color(0xFFDC2626)
-private val STATIC_COLOR = Color(0xFF9333EA)
+/** EnergyBarsCard 已抽到独立共享文件 EnergyBarsCard.kt（首页「工程能量图」卡共用，2026-10-07） */
 
 /**
  * 工程模式页：各距离门运动/静止能量实时柱状图（docs/06 阶段 2 任务 5）。
@@ -140,101 +139,3 @@ fun EngineeringScreen(
     }
 }
 
-@Composable
-private fun EnergyBarsCard(energies: GateEnergies?, resolutionCm: Int) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("距离门能量", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    BarLegend("运动", MOVE_COLOR)
-                    BarLegend("静止", STATIC_COLOR)
-                }
-            }
-
-            if (energies == null) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().height(180.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("等待工程数据…", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            } else {
-                val gateCount = maxOf(energies.moveGateEnergies.size, energies.staticGateEnergies.size)
-                Canvas(modifier = Modifier.fillMaxWidth().height(180.dp)) {
-                    val w = size.width
-                    val h = size.height
-                    val slot = w / gateCount
-                    val barW = slot * 0.28f
-                    for (g in 0 until gateCount) {
-                        val moveE = energies.moveGateEnergies.getOrElse(g) { 0 }
-                        val staticE = energies.staticGateEnergies.getOrElse(g) { 0 }
-                        val moveH = moveE / 100f * (h - 8f)
-                        val staticH = staticE / 100f * (h - 8f)
-                        val cx = slot * g + slot / 2
-                        drawRect(
-                            color = MOVE_COLOR,
-                            topLeft = Offset(cx - barW - 2f, h - moveH),
-                            size = Size(barW, moveH),
-                        )
-                        drawRect(
-                            color = STATIC_COLOR,
-                            topLeft = Offset(cx + 2f, h - staticH),
-                            size = Size(barW, staticH),
-                        )
-                    }
-                }
-                // 门号标签
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    for (g in 0 until gateCount) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Text("门$g", style = MaterialTheme.typography.labelSmall)
-                            Text(
-                                "%.1fm".format(g * resolutionCm / 100.0),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-                // 数值摘要
-                val maxMove = energies.moveGateEnergies.maxOrNull() ?: 0
-                val maxStatic = energies.staticGateEnergies.maxOrNull() ?: 0
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        "运动峰值 $maxMove · 静止峰值 $maxStatic",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        "最大门 运动${energies.maxMoveGate}/静止${energies.maxStaticGate}",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun BarLegend(label: String, color: Color) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Box(
-            modifier = Modifier.size(10.dp).background(color, RoundedCornerShape(2.dp)),
-        )
-        Text(label, style = MaterialTheme.typography.labelSmall)
-    }
-}
