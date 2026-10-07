@@ -7,11 +7,10 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Gitee 更新检查（docs/08 §3：App 内自动更新，用户需求 2026-10-07）。
+ * Gitee 更新检查（docs/08 §2.26：App 内自动更新）。
  *
  * GET https://gitee.com/api/v5/repos/{owner}/{repo}/releases/latest
- * - 公开仓库匿名可访问；私有仓库需要 `?access_token=`；
- * - **令牌安全**：token 只来自设置页（DataStore），本类不落日志、不写文件；
+ * - 更新仓库为**公开**仓库，匿名访问即可（App 内零令牌，用户决策 2026-10-07）；
  * - 网络 IO 全部在 Dispatchers.IO。
  */
 object UpdateChecker {
@@ -23,22 +22,12 @@ object UpdateChecker {
         data class Failure(val message: String) : CheckResult
     }
 
-    suspend fun fetch(owner: String, repo: String, token: String?, currentVersionCode: Int): CheckResult =
+    suspend fun fetch(owner: String, repo: String, currentVersionCode: Int): CheckResult =
         withContext(Dispatchers.IO) {
             if (owner.isBlank() || repo.isBlank()) {
-                return@withContext CheckResult.Failure("更新源未配置：请先在设置里填写 Gitee 用户名与仓库名")
+                return@withContext CheckResult.Failure("更新源未配置")
             }
-            val urlStr = buildString {
-                append("https://gitee.com/api/v5/repos/")
-                append(owner.trim())
-                append('/')
-                append(repo.trim())
-                append("/releases/latest")
-                if (!token.isNullOrBlank()) {
-                    append("?access_token=")
-                    append(token.trim())
-                }
-            }
+            val urlStr = "https://gitee.com/api/v5/repos/$owner/$repo/releases/latest"
             try {
                 val (code, text) = httpGet(urlStr)
                 when (code) {
@@ -52,7 +41,6 @@ object UpdateChecker {
                         }
                     }
                     404 -> CheckResult.Failure("更新源不可用：仓库不存在或还没有发布任何 Release（404）")
-                    401 -> CheckResult.Failure("鉴权失败：令牌无效或已过期（401）。私有仓库才需要填令牌")
                     else -> CheckResult.Failure("Gitee 返回 HTTP $code")
                 }
             } catch (e: IOException) {

@@ -15,7 +15,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $Owner = "hatefishjustin"
-$Repo = "dormradar-app"
+$Repo = "dormradar-update"
 $Token = "219e1a35842b42531dbd4553f51b68f5"
 $Api = "https://gitee.com/api/v5/repos/$Owner/$Repo"
 
@@ -31,7 +31,7 @@ $createJson = & curl.exe -s -m 60 -X POST "$Api/releases?access_token=$Token" `
     -d "tag_name=$ver" `
     -d "name=$Version" `
     --data-urlencode "body@$NotesFile" `
-    -d "target_commitish=main"
+    -d "target_commitish=master"
 $release = $createJson | ConvertFrom-Json
 if (-not $release.id) { Write-Error "Create release failed: $createJson"; exit 1 }
 $releaseId = $release.id

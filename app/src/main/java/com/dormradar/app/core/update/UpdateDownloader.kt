@@ -14,7 +14,7 @@ import java.net.URL
 /**
  * 更新 APK 下载与安装引导（用户需求 2026-10-07）。
  * - 下载到 cacheDir/update/（FileProvider 需在 file_paths.xml 暴露该路径）；
- * - 私有仓库的资产下载需要令牌（Authorization 头，不落日志）；
+ * - 更新仓库为公开仓库，匿名下载（App 内零令牌）；
  * - 安装前检查「允许安装未知应用」权限，未授予则引导跳系统设置。
  */
 object UpdateDownloader {
@@ -23,7 +23,6 @@ object UpdateDownloader {
     suspend fun download(
         context: Context,
         release: GiteeRelease,
-        token: String?,
         onProgress: (Int) -> Unit,
     ): Result<File> = withContext(Dispatchers.IO) {
         runCatching {
@@ -36,9 +35,6 @@ object UpdateDownloader {
             try {
                 conn.connectTimeout = 10_000
                 conn.readTimeout = 30_000
-                if (!token.isNullOrBlank()) {
-                    conn.setRequestProperty("Authorization", "token ${token.trim()}")
-                }
                 val code = conn.responseCode
                 if (code !in 200..299) throw IOException("下载失败：Gitee 返回 HTTP $code")
                 val total = conn.contentLengthLong.let { if (it > 0) it else -1L }

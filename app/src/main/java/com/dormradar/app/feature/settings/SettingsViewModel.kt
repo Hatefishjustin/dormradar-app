@@ -91,7 +91,7 @@ class SettingsViewModel @Inject constructor(
         if (_updateState.value.checking || _updateState.value.downloading) return
         viewModelScope.launch {
             _updateState.value = UpdateUiState(checking = true)
-            when (val result = UpdateChecker.fetch(UpdateConfig.OWNER, UpdateConfig.REPO, UpdateConfig.TOKEN, currentVersionCode)) {
+            when (val result = UpdateChecker.fetch(UpdateConfig.OWNER, UpdateConfig.REPO, currentVersionCode)) {
                 is UpdateChecker.CheckResult.NewRelease -> {
                     _updateState.value = UpdateUiState(release = result.release, message = null)
                 }
@@ -108,7 +108,7 @@ class SettingsViewModel @Inject constructor(
         if (_updateState.value.downloading) return
         viewModelScope.launch {
             _updateState.value = _updateState.value.copy(downloading = true, progress = 0, message = null)
-            val result = UpdateDownloader.download(appContext, release, UpdateConfig.TOKEN) { p ->
+            val result = UpdateDownloader.download(appContext, release) { p ->
                 _updateState.value = _updateState.value.copy(progress = p)
             }
             result.fold(
