@@ -13,6 +13,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -328,6 +329,23 @@ private fun PhotosensitiveCard(
                 enabled = !applying,
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("保存光敏配置") }
+
+            HorizontalDivider()
+
+            // ---- OUT 引脚灯控实验区（用户需求 2026-10-07：外接 LED 的关闭实验）----
+            Text("OUT 引脚灯控（实验性）", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text(
+                "若你的 LED 接在 OUT 引脚上：点下面按钮把辅助联动设为「关闭」，再观察 LED 是否熄灭。" +
+                    "OUT 关闭后的实际行为依固件而定，请以实测为准；想恢复联动时用上面的滑杆选回模式并保存即可。" +
+                    "注：模块板载的小指示灯由固件控制、协议没有关闭命令，只能物理遮蔽。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Button(
+                onClick = { onApply(0, threshold.toInt()) },
+                enabled = !applying,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("关闭辅助联动（OUT 灯控实验）") }
         }
     }
 }

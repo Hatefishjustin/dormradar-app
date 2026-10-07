@@ -1,6 +1,7 @@
 package com.dormradar.app.feature.settings
 
 import android.content.Intent
+import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -27,18 +29,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dormradar.app.core.device.ConnState
+import com.dormradar.app.core.log.FeedbackSummary
+import com.dormradar.app.core.log.LogExporter
 import com.dormradar.app.core.monitor.MonitorMode
+import com.dormradar.app.core.update.UpdateDownloader
+import kotlinx.coroutines.launch
 
 /**
  * 设置页（PRD 4.0 两层信息架构）：
@@ -219,6 +230,193 @@ fun SettingsScreen(
         }
 
         Spacer(Modifier.height(12.dp))
+
+        // ---- App 更新（Gitee 源，用户需求 2026-10-07）----
+        val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+        val gOwner by viewModel.giteeOwner.collectAsStateWithLifecycle()
+        val gRepo by viewModel.giteeRepo.collectAsStateWithLifecycle()
+        val gToken by viewModel.giteeToken.collectAsStateWithLifecycle()
+        val autoCheck by viewModel.autoUpdateCheck.collectAsStateWithLifecycle()
+        val versionCode = remember {
+            try {
+                context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode.toInt()
+            } catch (_: Exception) {
+                0
+            }
+        }
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("App 更新", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    "更新源 = 你的 Gitee 仓库（Release 里上传命名如 dormradar-0.6.0-11.apk 的资产）。" +
+                        "私有仓库才需要填私人令牌；令牌只保存在本机，不会上传",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = gOwner,
+                    onValueChange = viewModel::setGiteeOwner,
+                    singleLine = true,
+                    label = { Text("Gitee 用户名") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = gRepo,
+                    onValueChange = viewModel::setGiteeRepo,
+                    singleLine = true,
+                    label = { Text("仓库名") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = gToken,
+                    onValueChange = viewModel::setGiteeToken,
+                    singleLine = true,
+                    label = { Text("私人令牌（可选，仅私有仓库）") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Switch(checked = autoCheck, onCheckedChange = viewModel::setAutoUpdateCheck)
+                    Text(
+                        "启动时自动检查更新",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+                Button(
+                    onClick = { viewModel.checkUpdate(versionCode) },
+                    enabled = !updateState.checking && !updateState.downloading,
+                ) { Text(if (updateState.checking) "检查中…" else "检查更新") }
+                updateState.message?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                }
+                updateState.release?.let { rel ->
+                    Text(
+                        "发现新版本：${rel.name}",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    if (rel.body.isNotBlank()) {
+                        Text(
+                            rel.body,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (updateState.downloading) {
+                        LinearProgressIndicator(
+                            progress = { updateState.progress / 100f },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            "下载中 ${updateState.progress}%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            val apk = updateState.downloadedApk
+                            if (apk != null) {
+                                // 已下载 → 引导安装；未授「安装未知应用」先跳授权页
+                                val intent = UpdateDownloader.installIntent(context, apk) {
+                                    context.startActivity(UpdateDownloader.unknownSourceSettingsIntent(context))
+                                }
+                                intent?.let { context.startActivity(it) }
+                            } else {
+                                viewModel.downloadUpdate()
+                            }
+                        },
+                        enabled = !updateState.downloading,
+                    ) {
+                        Text(
+                            when {
+                                updateState.downloading -> "下载中…"
+                                updateState.downloadedApk != null -> "安装更新"
+                                else -> "下载更新"
+                            },
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // ---- 问题反馈（用户需求 2026-10-07）----
+        val clipboard = LocalClipboardManager.current
+        val deviceInfoForFeedback by viewModel.deviceInfo.collectAsStateWithLifecycle()
+        var feedbackBusy by rememberSaveable { mutableStateOf(false) }
+        var feedbackMessage by rememberSaveable { mutableStateOf("") }
+        val versionName = remember {
+            try {
+                context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "?"
+            } catch (_: Exception) {
+                "?"
+            }
+        }
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("问题反馈", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    "遇到 bug 时：点「一键收集诊断包」（含运行日志、事件流水、设备配置、距离诊断数据），" +
+                        "通过微信 / QQ / 邮件发给开发者，并附一句「发生了什么、当时在做什么」",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        enabled = !feedbackBusy,
+                        onClick = {
+                            feedbackBusy = true
+                            viewModel.collectFeedbackZip(
+                                onReady = { zip ->
+                                    try {
+                                        val uri = FileProvider.getUriForFile(
+                                            context, "${context.packageName}.fileprovider", zip,
+                                        )
+                                        val intent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "application/zip"
+                                            putExtra(Intent.EXTRA_STREAM, uri)
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        context.startActivity(Intent.createChooser(intent, "发送诊断包"))
+                                        feedbackMessage = "诊断包已生成并调起分享"
+                                    } catch (e: Exception) {
+                                        feedbackMessage = "分享失败：${e.message ?: "未知错误"}"
+                                    }
+                                    feedbackBusy = false
+                                },
+                                onError = { msg ->
+                                    feedbackMessage = "收集失败：$msg"
+                                    feedbackBusy = false
+                                },
+                            )
+                        },
+                    ) { Text(if (feedbackBusy) "收集中…" else "一键收集诊断包") }
+                    TextButton(onClick = {
+                        clipboard.setText(
+                            AnnotatedString(
+                                FeedbackSummary.build(
+                                    appVersion = versionName,
+                                    deviceModel = "${Build.MANUFACTURER} ${Build.MODEL}",
+                                    info = deviceInfoForFeedback,
+                                ),
+                            ),
+                        )
+                    }) { Text("复制设备摘要") }
+                }
+                if (feedbackMessage.isNotBlank()) {
+                    Text(
+                        feedbackMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
         HorizontalDivider()
         Spacer(Modifier.height(12.dp))
 
@@ -227,7 +425,7 @@ fun SettingsScreen(
                 Text("关于", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "宿管雷达 DormRadar v0.5.5\n面向 HLK-LD2410C 毫米波雷达的监控/调参工具。\n新增「近场饱和」判定：读数被钉在几十厘米且无人也报有人时，直接告诉你是安装问题、调参无用，并给出改安装的步骤。",
+                    "宿管雷达 DormRadar v0.6.0\n面向 HLK-LD2410C 毫米波雷达的监控/调参工具。\n新增：首页卡片自定义（编辑模式）、App 内检查更新（Gitee 源）、一键报 bug、OUT 引脚灯控实验区。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

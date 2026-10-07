@@ -24,3 +24,6 @@ __MACOSX/
 
 # AI 协作缓存（docs/ 才是交接契约，此处不进版本库）
 .workbuddy/
+
+# Trae IDE 工作区缓存（计划文件等，不入库）
+.trae/

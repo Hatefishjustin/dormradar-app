@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 日志 zip 导出分享（cacheDir/logs/） -->
+<!-- 日志 zip 导出分享（cacheDir/logs/）+ 更新 APK 安装（cacheDir/update/） -->
 <paths>
     <cache-path
         name="logs"
         path="logs/" />
+    <cache-path
+        name="update"
+        path="update/" />
 </paths>
