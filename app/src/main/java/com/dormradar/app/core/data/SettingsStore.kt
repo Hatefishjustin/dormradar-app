@@ -46,6 +46,9 @@ class SettingsStore @Inject constructor(
         // 诊断两步引导（无人+有人）完成后自动存档的 CSV，供无人基线定参/部署向导复用，免重复采样
         val deployArchiveCsv = stringPreferencesKey("deploy_archive_csv")
         val deployArchiveMeta = stringPreferencesKey("deploy_archive_meta") // "savedAtMs,resolutionCm,rows"
+
+        // ---- 彩蛋：原型机一号机已看过成就弹窗的 MAC 集合（2026-10-08，规范化 CSV）----
+        val easterEggSeenMacs = stringPreferencesKey("easter_egg_seen_macs")
     }
 
     val bluetoothPassword: Flow<String> =
@@ -112,6 +115,21 @@ class SettingsStore @Inject constructor(
     suspend fun setLastDeviceMac(value: String?) {
         context.dataStore.edit { prefs ->
             if (value == null) prefs.remove(Keys.lastDeviceMac) else prefs[Keys.lastDeviceMac] = value
+        }
+    }
+
+    /** 已看过原型机彩蛋的 MAC 集合（规范化大写无分隔符） */
+    val easterEggSeenMacs: Flow<Set<String>> =
+        context.dataStore.data.map { prefs ->
+            prefs[Keys.easterEggSeenMacs]?.split(',')?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+        }
+
+    /** 永久记住某台设备已看过彩蛋（幂等追加） */
+    suspend fun markEasterEggSeen(macNormalized: String) {
+        context.dataStore.edit { prefs ->
+            val old = prefs[Keys.easterEggSeenMacs]
+                ?.split(',')?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+            prefs[Keys.easterEggSeenMacs] = (old + macNormalized).joinToString(",")
         }
     }
 

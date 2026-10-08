@@ -38,6 +38,7 @@ import com.dormradar.app.feature.logs.DistanceDiagScreen
 import com.dormradar.app.feature.quicksetup.QuickSetupScreen
 import com.dormradar.app.feature.settings.SettingsScreen
 import com.dormradar.app.feature.settings.UpdatePromptHost
+import com.dormradar.app.feature.settings.EasterEggHost
 
 private data class Tab(
     val route: String,
@@ -96,6 +97,8 @@ fun AppRoot() {
     ) { padding ->
         // 启动更新提示（每次冷启动检查一次，发现新版弹窗询问；用户决策 2026-10-07）
         UpdatePromptHost()
+        // 原型机一号机彩蛋（首次连接弹出，点「太有实力了」才能关；2026-10-08）
+        EasterEggHost()
         NavHost(
             navController = navController,
             startDestination = "home",
